@@ -146,7 +146,6 @@ if st.button("💾 Salvar Novo Produto"):
     elif not nome_novo or not descricao_novo or upload_novo is None:
         st.error("Preencha todos os campos!")
     else:
-
         # Salvar imagem com extensão correta
         orig_ext = upload_novo.name.split(".")[-1].lower()
 
@@ -154,14 +153,22 @@ if st.button("💾 Salvar Novo Produto"):
             st.error("Formato de imagem inválido! Use PNG, JPG ou JPEG.")
             st.stop()
 
-        if orig_ext == "jpeg" or "png":
+        # Normalizar extensão
+        if orig_ext == "jpeg":
             orig_ext = "jpg"
 
         img_filename = f"{codigo_busca}.{orig_ext}"
         img_path = os.path.join(IMAGENS_DIR, img_filename)
 
+        # Abrir imagem
         image = Image.open(upload_novo)
-        image.save(img_path)
+
+        # Se for JPG, converter para RGB (evita erro com transparência)
+        if orig_ext == "jpg" and image.mode in ("RGBA", "P"):
+            image = image.convert("RGB")
+
+        # Salvar com formato explícito
+        image.save(img_path, format=orig_ext.upper())
 
         # Criar produto
         novo_produto = {
@@ -211,7 +218,6 @@ if len(st.session_state.pecas_cliente) == 0:
     st.info("Nenhuma peça adicionada ainda.")
 else:
     for i, p in enumerate(st.session_state.pecas_cliente):
-
         with st.container(border=True):
             st.write(f"**{p['nome']}** — {p['codigo']}")
             st.write(p["descricao"])
@@ -221,14 +227,12 @@ else:
                 if st.button("🗑 Remover", key=f"remove_{i}"):
                     st.session_state.pecas_cliente.pop(i)
                     st.rerun()
-
         st.write("")
 
 # ------------------------------
 # SALVAR CATÁLOGO DO CLIENTE
 # ------------------------------
 if st.button("📁 Salvar Catálogo do Cliente"):
-
     if not cliente or not vendedor or not contato:
         st.error("Preencha os dados do cliente!")
         st.stop()
