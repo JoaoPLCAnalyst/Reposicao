@@ -24,6 +24,6 @@ def render_header(logo_base64):
 
     <div class="header">
         <img src="data:image/png;base64,{logo_base64}">
-        <h1>ALCAM — Reposição de Peças</h1>
+        <h1>WCE — Reposição de Peças</h1>
     </div>
     """, unsafe_allow_html=True)
