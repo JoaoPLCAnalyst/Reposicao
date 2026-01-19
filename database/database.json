@@ -16,5 +16,17 @@
     "nome": "jsfisjfo",
     "descricao": "sfsf",
     "imagem": "imagens/botao emergencia.jpg"
+  },
+  {
+    "codigo": "6800-90A",
+    "nome": "6800-90A",
+    "descricao": "Soft Starter 6800-90A",
+    "imagem": "imagens/6800-90A.png"
+  },
+  {
+    "codigo": "6800-90A",
+    "nome": "6800-90A",
+    "descricao": "Soft Starter 6800-90A",
+    "imagem": "imagens/6800-90A.png"
   }
 ]
