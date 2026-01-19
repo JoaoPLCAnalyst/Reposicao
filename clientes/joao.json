@@ -1,19 +1,19 @@
 {
-  "cliente": "Joao",
-  "vendedor": "Stefany",
-  "contato": "+551532283708",
-  "pecas": [
-    {
-      "codigo": "6800-90A",
-      "nome": "6800-90A",
-      "descricao": "Soft Starter 6800-90A",
-      "imagem": "imagens/6800-90A.png"
-    },
-    {
-      "codigo": "360-22A",
-      "nome": "360-22A",
-      "descricao": "Soft Starter 360-22A",
-      "imagem": "imagens/360-22A.png"
-    }
-  ]
+    "cliente": "Joao",
+    "vendedor": "Stefany",
+    "contato": "+551532283708",
+    "pecas": [
+        {
+            "codigo": "6800-90A",
+            "nome": "6800-90A",
+            "descricao": "Soft Starter 6800-90A",
+            "imagem": "imagens/6800-90A.png"
+        },
+        {
+            "codigo": "360-22A",
+            "nome": "360-22A",
+            "descricao": "Soft Starter 360-22A",
+            "imagem": "imagens/360-22A.png"
+        }
+    ]
 }
