@@ -13,7 +13,7 @@ from components.peca import render_peca
 # -----------------------------------------------------------
 # CONFIG INICIAL
 # -----------------------------------------------------------
-st.set_page_config(page_title="ALCAM", layout="wide")
+st.set_page_config(page_title="WCE", layout="wide")
 
 logo_base64 = img_to_base64("imagens/Logo.png")
 render_header(logo_base64)
@@ -46,7 +46,7 @@ query_params = st.query_params
 cliente_id = query_params.get("cliente", "")
 
 if cliente_id == "":
-    st.markdown("<h1 class='title-center'>🔧 Sistema de Catálogo ALCAM</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='title-center'>🔧 Sistema de Catálogo WCE</h1>", unsafe_allow_html=True)
     st.markdown("<h3 class='title-center'>Escolha uma opção para continuar</h3>", unsafe_allow_html=True)
     st.write("")
 
