@@ -1,0 +1,20 @@
+[
+  {
+    "codigo": "1234",
+    "nome": "Botao emergencia",
+    "descricao": "botao emergencia cogumelo",
+    "imagem": "imagens/1234.png"
+  },
+  {
+    "codigo": "4321",
+    "nome": "chave seccionadora",
+    "descricao": "chave seccionadora on/off",
+    "imagem": "imagens/4321.jpg"
+  },
+  {
+    "codigo": "botao emergencia",
+    "nome": "jsfisjfo",
+    "descricao": "sfsf",
+    "imagem": "imagens/botao emergencia.jpg"
+  }
+]

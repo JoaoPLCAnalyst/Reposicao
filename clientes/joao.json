@@ -1,0 +1,19 @@
+{
+    "cliente": "joao",
+    "vendedor": "calyton",
+    "contato": "5515991294004",
+    "pecas": [
+        {
+            "codigo": "1234",
+            "nome": "Botao emergencia",
+            "descricao": "botao emergencia cogumelo",
+            "imagem": "imagens/1234.jpg"
+        },
+        {
+            "codigo": "4321",
+            "nome": "chave seccionadora",
+            "descricao": "chave seccionadora on/off",
+            "imagem": "imagens/4321.jpg"
+        }
+    ]
+}

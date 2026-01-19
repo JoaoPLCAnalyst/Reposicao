@@ -1,0 +1,13 @@
+{
+  "cliente": "dana",
+  "vendedor": "luiz",
+  "contato": "5515997266165",
+  "pecas": [
+    {
+      "codigo": "botao emergencia",
+      "nome": "jsfisjfo",
+      "descricao": "sfsf",
+      "imagem": "imagens/botao emergencia.jpg"
+    }
+  ]
+}
