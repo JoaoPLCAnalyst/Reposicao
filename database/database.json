@@ -34,5 +34,11 @@
     "nome": "360-22A",
     "descricao": "Soft Starter 360-22A",
     "imagem": "imagens/360-22A.png"
+  },
+  {
+    "codigo": "Inversor",
+    "nome": "Inversor",
+    "descricao": "inversor-teste-adicao",
+    "imagem": "imagens/Inversor.jpg"
   }
 ]
