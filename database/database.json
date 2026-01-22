@@ -40,5 +40,12 @@
     "nome": "Inversor",
     "descricao": "inversor-teste-adicao",
     "imagem": "imagens/Inversor.jpg"
+  },
+  {
+    "codigo": "teste1",
+    "nome": "teste1",
+    "descricao": "teste1",
+    "imagem": "imagens/teste1.png",
+    "manual": "https://raw.githubusercontent.com/JoaoPLCAnalyst/Reposicao/main/pdfs/teste1.pdf"
   }
 ]
