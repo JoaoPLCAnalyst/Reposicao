@@ -35,8 +35,44 @@ st.markdown("""
 .title-center {
     text-align: center;
 }
+.pdf-button {
+    display:inline-block;
+    text-decoration:none;
+    padding:8px 14px;
+    border-radius:8px;
+    background:#0b5fff;
+    color:#ffffff;
+    font-weight:600;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    margin-top:8px;
+}
 </style>
 """, unsafe_allow_html=True)
+
+# -------------------------
+# Função: botão estilizado para PDF (apenas para a exibição do catálogo do cliente)
+# -------------------------
+def pdf_button(url: str, label: str = "📘 Abrir manual"):
+    """
+    Exibe um botão estilizado que abre `url` em nova aba.
+    Use apenas na página do cliente; não altera outros módulos.
+    """
+    if not url:
+        st.info("Sem manual disponível.")
+        return
+
+    # Escapa a URL para segurança
+    safe_url = urllib.parse.quote(url, safe=":/?&=#%")
+
+    button_html = f"""
+    <div>
+      <a href="{safe_url}" target="_blank" rel="noopener noreferrer" class="pdf-button">
+        {label}
+      </a>
+    </div>
+    """
+    st.markdown(button_html, unsafe_allow_html=True)
+
 
 # -----------------------------------------------------------
 # 0. TELA INICIAL — APARECE QUANDO NÃO TEM CLIENTE NA URL
@@ -125,7 +161,13 @@ st.subheader("📦 Lista de Peças Disponíveis")
 
 for idx, peca in enumerate(pecas):
     st.markdown("---")
+    # renderiza o componente visual da peça (mantém comportamento atual)
     render_peca(peca, idx, quantidades, pecas_selecionadas)
+
+    # Ao exibir o catálogo para o cliente, se a peça tiver manual, mostramos um botão estilizado
+    manual_url = peca.get("manual")
+    if manual_url:
+        pdf_button(manual_url, "📘 Abrir manual")
 
 if not pecas_selecionadas:
     st.warning("Selecione pelo menos uma peça para continuar.")
