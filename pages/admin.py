@@ -155,10 +155,20 @@ if st.button("💾 Salvar Novo Produto"):
         img_filename = f"{codigo_busca}.{orig_ext}"
         img_path = os.path.join(IMAGENS_DIR, img_filename)
 
+        # Abrir imagem
         image = Image.open(upload_novo)
+
+        # Se for JPG, converter para RGB (evita erro com transparência)
         if orig_ext == "jpg" and image.mode in ("RGBA", "P"):
             image = image.convert("RGB")
-        image.save(img_path, format=orig_ext.upper())
+
+        # Mapear extensão para formato Pillow
+        format_map = {"jpg": "JPEG", "png": "PNG"}
+        image_format = format_map.get(orig_ext)
+
+        # Salvar com formato correto
+        image.save(img_path, format=image_format)
+
 
         # ---------------- SALVAR PDF (se existir) ----------------
         manual_filename = None
