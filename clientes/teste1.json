@@ -1,0 +1,14 @@
+{
+  "cliente": "teste1",
+  "vendedor": "teste1",
+  "contato": "+5515997266165",
+  "pecas": [
+    {
+      "codigo": "teste1",
+      "nome": "teste1",
+      "descricao": "teste1",
+      "imagem": "imagens/teste1.png",
+      "manual": "https://raw.githubusercontent.com/JoaoPLCAnalyst/Reposicao/main/pdfs/teste1.pdf"
+    }
+  ]
+}
