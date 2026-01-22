@@ -40,8 +40,8 @@ st.markdown("""
     text-decoration:none;
     padding:8px 14px;
     border-radius:8px;
-    background:#0b5fff;
-    color:#ffffff;
+    background:#08365c;
+    color:white !important;
     font-weight:600;
     box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     margin-top:8px;
