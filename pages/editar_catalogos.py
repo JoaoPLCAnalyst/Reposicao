@@ -8,6 +8,7 @@ st.set_page_config(page_title="Editar Catálogo", page_icon="📘")
 
 CATALOGOS_DIR = "clientes"
 IMAGENS_DIR = "imagens"
+PDFS_DIR = "pdfs"
 PRODUTOS_FILE = "database/database.json"
 
 # --------------------------------------------------
@@ -98,7 +99,11 @@ for i, p in enumerate(catalogo["pecas"]):
             else:
                 st.info("Imagem não encontrada localmente.")
 
+            if p.get("manual"):
+                st.markdown(f"[📘 Manual atual em PDF]({p['manual']})")
+
             nova_img = st.file_uploader("Nova imagem (opcional)", type=["png", "jpg", "jpeg"], key=f"img_{i}")
+            nova_pdf = st.file_uploader("Novo manual em PDF (opcional)", type=["pdf"], key=f"pdf_{i}")
 
             confirmar = st.form_submit_button("Confirmar alterações")
             remover = st.form_submit_button("Remover peça")
@@ -138,7 +143,27 @@ for i, p in enumerate(catalogo["pecas"]):
                         st.error("Erro ao atualizar imagem no GitHub")
                         st.code(resp_img.text)
 
-                # Atualizar também no database.json
+                manual_filename = None
+                if nova_pdf is not None:
+                    manual_filename = f"{p.get('codigo', i)}.pdf"
+                    manual_path = os.path.join(PDFS_DIR, manual_filename)
+                    os.makedirs(PDFS_DIR, exist_ok=True)
+                    with open(manual_path, "wb") as f:
+                        f.write(nova_pdf.read())
+
+                    catalogo["pecas"][i]["manual"] = f"{PDFS_DIR}/{manual_filename}"
+
+                    resp_pdf = github_upload(
+                        manual_path,
+                        f"pdfs/{manual_filename}",
+                        f"Atualizando manual PDF da peça {p.get('codigo', i)}"
+                    )
+                    if resp_pdf.status_code in [200, 201]:
+                        st.success("📑 Manual PDF atualizado no GitHub!")
+                    else:
+                        st.error("Erro ao atualizar manual PDF no GitHub")
+                        st.code(resp_pdf.text)
+
                 produtos = carregar_produtos()
                 for prod in produtos:
                     if prod["codigo"] == p.get("codigo"):
@@ -146,9 +171,10 @@ for i, p in enumerate(catalogo["pecas"]):
                         prod["descricao"] = desc_input
                         if img_filename:
                             prod["imagem"] = f"imagens/{img_filename}"
+                        if manual_filename:
+                            prod["manual"] = f"pdfs/{manual_filename}"
                     break
                 salvar_produtos(produtos)
-
 
                 resp_db = github_upload(
                     PRODUTOS_FILE,
@@ -179,6 +205,13 @@ if remover_indices:
             except Exception:
                 pass
 
+        pdf_path = p_to_remove.get("manual")
+        if pdf_path and os.path.exists(pdf_path):
+            try:
+                os.remove(pdf_path)
+            except Exception:
+                pass
+
         catalogo["pecas"].pop(idx)
 
         produtos = carregar_produtos()
@@ -206,11 +239,13 @@ codigo_novo = st.text_input("Código da peça (nova):", key="codigo_novo")
 nome_novo = st.text_input("Nome da peça (nova):", key="nome_novo")
 desc_novo = st.text_area("Descrição (nova):", key="desc_novo")
 img_nova = st.file_uploader("Imagem (nova):", type=["png", "jpg", "jpeg"], key="img_nova")
+pdf_novo = st.file_uploader("Manual em PDF (novo):", type=["pdf"], key="pdf_novo")
 
 if st.button("Adicionar peça"):
     if not codigo_novo or not nome_novo or not img_nova:
         st.error("Preencha todos os campos e envie uma imagem.")
     else:
+        # ---------------- SALVAR IMAGEM ----------------
         ext = img_nova.name.split(".")[-1].lower()
         if ext == "jpeg":
             ext = "jpg"
@@ -223,12 +258,35 @@ if st.button("Adicionar peça"):
         image = Image.open(img_nova)
         image.save(img_path)
 
+        # ---------------- SALVAR PDF (se existir) ----------------
+        manual_filename = None
+        if pdf_novo is not None:
+            manual_filename = f"{codigo_novo}.pdf"
+            manual_path = os.path.join(PDFS_DIR, manual_filename)
+            os.makedirs(PDFS_DIR, exist_ok=True)
+            with open(manual_path, "wb") as f:
+                f.write(pdf_novo.read())
+
+            resp_pdf = github_upload(
+                manual_path,
+                f"pdfs/{manual_filename}",
+                f"Adicionando manual PDF da peça {codigo_novo}"
+            )
+            if resp_pdf.status_code in [200, 201]:
+                st.success("📑 Manual PDF enviado ao GitHub!")
+            else:
+                st.error("Erro ao enviar manual PDF")
+                st.code(resp_pdf.text)
+
+        # ---------------- CRIAR PEÇA ----------------
         nova_peca = {
             "codigo": codigo_novo,
             "nome": nome_novo,
             "descricao": desc_novo,
             "imagem": f"{IMAGENS_DIR}/{img_filename}"
         }
+        if manual_filename:
+            nova_peca["manual"] = f"pdfs/{manual_filename}"
 
         catalogo["pecas"].append(nova_peca)
 

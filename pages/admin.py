@@ -139,55 +139,67 @@ st.markdown("### ➕ Cadastrar Novo Produto")
 nome_novo = st.text_input("Nome da Nova Peça", key="nome_novo")
 descricao_novo = st.text_area("Descrição da Nova Peça", key="descricao_novo")
 upload_novo = st.file_uploader("Imagem da Nova Peça", type=["png", "jpg", "jpeg"])
+upload_pdf = st.file_uploader("Manual em PDF (opcional)", type=["pdf"])
 
 if st.button("💾 Salvar Novo Produto"):
     if not codigo_busca:
         st.error("Digite o CÓDIGO do novo produto!")
     elif not nome_novo or not descricao_novo or upload_novo is None:
-        st.error("Preencha todos os campos!")
+        st.error("Preencha todos os campos e envie a imagem!")
     else:
-        # Salvar imagem com extensão correta
+        # ---------------- SALVAR IMAGEM ----------------
         orig_ext = upload_novo.name.split(".")[-1].lower()
-
-        if orig_ext not in ["png", "jpg", "jpeg"]:
-            st.error("Formato de imagem inválido! Use PNG, JPG ou JPEG.")
-            st.stop()
-
-        # Normalizar extensão
         if orig_ext == "jpeg":
             orig_ext = "jpg"
 
         img_filename = f"{codigo_busca}.{orig_ext}"
         img_path = os.path.join(IMAGENS_DIR, img_filename)
 
-        # Abrir imagem
         image = Image.open(upload_novo)
-
-        # Se for JPG, converter para RGB (evita erro com transparência)
         if orig_ext == "jpg" and image.mode in ("RGBA", "P"):
             image = image.convert("RGB")
-
-        # Salvar com formato explícito
         image.save(img_path, format=orig_ext.upper())
 
-        # Criar produto
+        # ---------------- SALVAR PDF (se existir) ----------------
+        manual_filename = None
+        if upload_pdf is not None:
+            manual_filename = f"{codigo_busca}.pdf"
+            manual_path = os.path.join("pdfs", manual_filename)
+            os.makedirs("pdfs", exist_ok=True)
+            with open(manual_path, "wb") as f:
+                f.write(upload_pdf.read())
+
+            # Upload para GitHub
+            resp_pdf = github_upload(
+                manual_path,
+                f"pdfs/{manual_filename}",
+                f"Adicionando manual PDF do produto {codigo_busca}"
+            )
+            if resp_pdf.status_code in [200, 201]:
+                st.success("📑 Manual PDF enviado ao GitHub!")
+            else:
+                st.error("Erro ao enviar manual PDF")
+                st.code(resp_pdf.text)
+
+        # ---------------- CRIAR PRODUTO ----------------
         novo_produto = {
             "codigo": codigo_busca,
             "nome": nome_novo,
             "descricao": descricao_novo,
             "imagem": f"imagens/{img_filename}"
         }
+        if manual_filename:
+            novo_produto["manual"] = f"pdfs/{manual_filename}"
 
         produtos.append(novo_produto)
         salvar_produtos(produtos)
 
-        # Uploads GitHub
+        # Uploads GitHub da imagem e database.json
         resp_img = github_upload(
             img_path,
             f"imagens/{img_filename}",
             f"Adicionando imagem do produto {codigo_busca}"
         )
-
         if resp_img.status_code in [200, 201]:
             st.success("📸 Imagem enviada ao GitHub!")
         else:
@@ -199,7 +211,6 @@ if st.button("💾 Salvar Novo Produto"):
             "database/database.json",
             "Atualizando database.json após cadastrar produto"
         )
-
         if resp_db.status_code in [200, 201]:
             st.success("📘 database.json atualizado no GitHub!")
         else:
