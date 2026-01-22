@@ -53,14 +53,16 @@ def _resp_obj(status, text):
     return R(status, text)
 
 def github_raw_url(repo_path):
-    """Monta a URL pública do GitHub para abrir direto no navegador (usa branch configurável)."""
     user = st.secrets["GITHUB_USER"]
     repo = st.secrets["GITHUB_REPO"]
     branch = st.secrets.get("GITHUB_BRANCH", DEFAULT_BRANCH)
     return f"https://raw.githubusercontent.com/{user}/{repo}/{branch}/{repo_path}"
 
 def github_upload(path, repo_path, message, max_retries=2):
-    """Envia QUALQUER arquivo ao GitHub (API Contents)."""
+    """
+    Envia arquivo ao GitHub (API Contents).
+    Retorna requests.Response ou objeto compatível em caso de erro.
+    """
     token = st.secrets["GITHUB_TOKEN"].strip()
     user = st.secrets["GITHUB_USER"]
     repo = st.secrets["GITHUB_REPO"]
@@ -162,10 +164,16 @@ for i, p in enumerate(catalogo["pecas"]):
 
             st.write("Imagem atual:")
             imagem_atual = p.get("imagem", None)
-            if imagem_atual and os.path.exists(imagem_atual):
-                st.image(imagem_atual, width=200)
+            if imagem_atual:
+                if isinstance(imagem_atual, str) and (imagem_atual.startswith("http://") or imagem_atual.startswith("https://")):
+                    st.image(imagem_atual, width=200)
+                else:
+                    if os.path.exists(imagem_atual):
+                        st.image(imagem_atual, width=200)
+                    else:
+                        st.info("Imagem não encontrada localmente.")
             else:
-                st.info("Imagem não encontrada localmente.")
+                st.info("Sem imagem.")
 
             if p.get("manual"):
                 st.markdown(f"[📘 Manual atual em PDF]({p['manual']})")
@@ -190,7 +198,7 @@ for i, p in enumerate(catalogo["pecas"]):
                 manual_filename = None
                 manual_url = None
 
-                # Nova imagem: salva localmente e faz upload (mas mantém caminho local no catálogo)
+                # Nova imagem: salva localmente e faz upload (mantém caminho local no catálogo)
                 if nova_img is not None:
                     ext = nova_img.name.split(".")[-1].lower()
                     if ext == "jpeg":
@@ -207,7 +215,7 @@ for i, p in enumerate(catalogo["pecas"]):
                     image_format = format_map.get(ext)
                     image.save(img_path, format=image_format)
 
-                    # Mantém caminho local no catálogo (conforme solicitado)
+                    # Mantém caminho local no catálogo
                     catalogo["pecas"][i]["imagem"] = f"{IMAGENS_DIR}/{img_filename}"
 
                     # Faz upload ao GitHub (mantendo comportamento anterior)
@@ -219,8 +227,7 @@ for i, p in enumerate(catalogo["pecas"]):
                     if getattr(resp_img, "status_code", None) in [200, 201]:
                         st.success("📸 Imagem atualizada no GitHub!")
                     else:
-                        st.error("Erro ao atualizar imagem no GitHub")
-                        st.code(getattr(resp_img, "text", str(resp_img)))
+                        st.warning("Imagem salva localmente; envio ao GitHub falhou ou não autorizado.")
 
                 # Novo PDF: salva localmente, tenta upload e só grava URL pública se upload OK
                 if nova_pdf is not None:
@@ -242,6 +249,10 @@ for i, p in enumerate(catalogo["pecas"]):
                     else:
                         st.error("Erro ao atualizar manual PDF no GitHub")
                         st.code(getattr(resp_pdf, "text", str(resp_pdf)))
+                        # não altera o campo manual no catálogo
+
+                # SALVAR CATALOGO IMEDIATAMENTE para refletir mudanças na UI
+                salvar_catalogo(caminho_catalogo, catalogo)
 
                 # Atualiza também o database/local produtos (mantendo imagem como caminho local)
                 produtos = carregar_produtos()
@@ -278,6 +289,9 @@ if remover_indices:
         p_to_remove = catalogo["pecas"][idx]
         codigo_removido = p_to_remove.get("codigo")
         catalogo["pecas"].pop(idx)
+
+        # SALVAR CATALOGO IMEDIATAMENTE após remoção
+        salvar_catalogo(caminho_catalogo, catalogo)
 
         produtos = carregar_produtos()
         produtos = [prod for prod in produtos if prod.get("codigo") != codigo_removido]
@@ -353,13 +367,16 @@ if st.button("Adicionar peça"):
             "codigo": codigo_novo,
             "nome": nome_novo,
             "descricao": desc_novo,
-            # manter imagem como caminho local (conforme solicitado)
+            # manter imagem como caminho local
             "imagem": f"{IMAGENS_DIR}/{img_filename}"
         }
         if manual_url:
             nova_peca["manual"] = manual_url
 
         catalogo["pecas"].append(nova_peca)
+
+        # SALVAR CATALOGO IMEDIATAMENTE
+        salvar_catalogo(caminho_catalogo, catalogo)
 
         produtos = carregar_produtos()
         produtos.append(nova_peca)
