@@ -37,7 +37,7 @@ st.markdown("""
 }
 .pdf-button {
     display:inline-block;
-    text-decoration:none;
+    text-decoration: none !important;
     padding:8px 14px;
     border-radius:8px;
     background:#08365c;
