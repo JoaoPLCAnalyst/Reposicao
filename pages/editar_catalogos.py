@@ -53,6 +53,10 @@ def github_upload(path, repo_path, message):
 
     return requests.put(url, headers=headers, json=payload)
 
+def github_raw_url(repo_path):
+    """Monta a URL pública do GitHub para abrir direto no navegador."""
+    return f"https://raw.githubusercontent.com/{st.secrets['GITHUB_USER']}/{st.secrets['GITHUB_REPO']}/main/{repo_path}"
+
 # --------------------------------------------------
 # Página
 # --------------------------------------------------
@@ -128,9 +132,13 @@ for i, p in enumerate(catalogo["pecas"]):
                     os.makedirs(IMAGENS_DIR, exist_ok=True)
 
                     image = Image.open(nova_img)
-                    image.save(img_path)
+                    if ext == "jpg" and image.mode in ("RGBA", "P"):
+                        image = image.convert("RGB")
+                    format_map = {"jpg": "JPEG", "png": "PNG"}
+                    image_format = format_map.get(ext)
+                    image.save(img_path, format=image_format)
 
-                    catalogo["pecas"][i]["imagem"] = f"{IMAGENS_DIR}/{img_filename}"
+                    catalogo["pecas"][i]["imagem"] = github_raw_url(f"imagens/{img_filename}")
 
                     resp_img = github_upload(
                         img_path,
@@ -151,7 +159,8 @@ for i, p in enumerate(catalogo["pecas"]):
                     with open(manual_path, "wb") as f:
                         f.write(nova_pdf.read())
 
-                    catalogo["pecas"][i]["manual"] = f"{PDFS_DIR}/{manual_filename}"
+                    manual_url = github_raw_url(f"pdfs/{manual_filename}")
+                    catalogo["pecas"][i]["manual"] = manual_url
 
                     resp_pdf = github_upload(
                         manual_path,
@@ -170,9 +179,9 @@ for i, p in enumerate(catalogo["pecas"]):
                         prod["nome"] = nome_input
                         prod["descricao"] = desc_input
                         if img_filename:
-                            prod["imagem"] = f"imagens/{img_filename}"
+                            prod["imagem"] = github_raw_url(f"imagens/{img_filename}")
                         if manual_filename:
-                            prod["manual"] = f"pdfs/{manual_filename}"
+                            prod["manual"] = manual_url
                     break
                 salvar_produtos(produtos)
 
@@ -197,21 +206,6 @@ if remover_indices:
     for idx in sorted(remover_indices, reverse=True):
         p_to_remove = catalogo["pecas"][idx]
         codigo_removido = p_to_remove.get("codigo")
-
-        img_path = p_to_remove.get("imagem")
-        if img_path and os.path.exists(img_path):
-            try:
-                os.remove(img_path)
-            except Exception:
-                pass
-
-        pdf_path = p_to_remove.get("manual")
-        if pdf_path and os.path.exists(pdf_path):
-            try:
-                os.remove(pdf_path)
-            except Exception:
-                pass
-
         catalogo["pecas"].pop(idx)
 
         produtos = carregar_produtos()
@@ -256,10 +250,15 @@ if st.button("Adicionar peça"):
         os.makedirs(IMAGENS_DIR, exist_ok=True)
 
         image = Image.open(img_nova)
-        image.save(img_path)
+        if ext == "jpg" and image.mode in ("RGBA", "P"):
+            image = image.convert("RGB")
+        format_map = {"jpg": "JPEG", "png": "PNG"}
+        image_format = format_map.get(ext)
+        image.save(img_path, format=image_format)
 
         # ---------------- SALVAR PDF (se existir) ----------------
         manual_filename = None
+        manual_url = None
         if pdf_novo is not None:
             manual_filename = f"{codigo_novo}.pdf"
             manual_path = os.path.join(PDFS_DIR, manual_filename)
@@ -272,6 +271,7 @@ if st.button("Adicionar peça"):
                 f"pdfs/{manual_filename}",
                 f"Adicionando manual PDF da peça {codigo_novo}"
             )
+            manual_url = f"https://raw.githubusercontent.com/{st.secrets['GITHUB_USER']}/{st.secrets['GITHUB_REPO']}/main/pdfs/{manual_filename}"
             if resp_pdf.status_code in [200, 201]:
                 st.success("📑 Manual PDF enviado ao GitHub!")
             else:
@@ -283,10 +283,10 @@ if st.button("Adicionar peça"):
             "codigo": codigo_novo,
             "nome": nome_novo,
             "descricao": desc_novo,
-            "imagem": f"{IMAGENS_DIR}/{img_filename}"
+            "imagem": f"https://raw.githubusercontent.com/{st.secrets['GITHUB_USER']}/{st.secrets['GITHUB_REPO']}/main/imagens/{img_filename}"
         }
-        if manual_filename:
-            nova_peca["manual"] = f"pdfs/{manual_filename}"
+        if manual_url:
+            nova_peca["manual"] = manual_url
 
         catalogo["pecas"].append(nova_peca)
 
