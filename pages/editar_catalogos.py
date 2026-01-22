@@ -52,6 +52,11 @@ def _resp_obj(status, text):
             return self._text
     return R(status, text)
 
+def github_raw_url_with_commit(repo_path, commit_sha):
+    user = st.secrets["GITHUB_USER"]
+    repo = st.secrets["GITHUB_REPO"]
+    return f"https://raw.githubusercontent.com/{user}/{repo}/{commit_sha}/{repo_path}"
+
 def github_raw_url(repo_path):
     user = st.secrets["GITHUB_USER"]
     repo = st.secrets["GITHUB_REPO"]
@@ -243,7 +248,20 @@ for i, p in enumerate(catalogo["pecas"]):
                         f"Atualizando manual PDF da peça {p.get('codigo', i)}"
                     )
                     if getattr(resp_pdf, "status_code", None) in [200, 201]:
-                        manual_url = github_raw_url(f"pdfs/{manual_filename}")
+                        # tenta extrair commit SHA do retorno da API para montar URL que referencia a versão exata
+                        commit_sha = None
+                        try:
+                            resp_json = resp_pdf.json()
+                            commit_sha = resp_json.get("commit", {}).get("sha")
+                        except Exception:
+                            commit_sha = None
+
+                        if commit_sha:
+                            manual_url = github_raw_url_with_commit(f"pdfs/{manual_filename}", commit_sha)
+                        else:
+                            # fallback para branch-based raw URL
+                            manual_url = github_raw_url(f"pdfs/{manual_filename}")
+
                         catalogo["pecas"][i]["manual"] = manual_url
                         st.success("📑 Manual PDF atualizado no GitHub!")
                     else:
@@ -356,7 +374,19 @@ if st.button("Adicionar peça"):
                 f"Adicionando manual PDF da peça {codigo_novo}"
             )
             if getattr(resp_pdf, "status_code", None) in [200, 201]:
-                manual_url = github_raw_url(f"pdfs/{manual_filename}")
+                # extrai commit sha para garantir versão exata
+                commit_sha = None
+                try:
+                    resp_json = resp_pdf.json()
+                    commit_sha = resp_json.get("commit", {}).get("sha")
+                except Exception:
+                    commit_sha = None
+
+                if commit_sha:
+                    manual_url = github_raw_url_with_commit(f"pdfs/{manual_filename}", commit_sha)
+                else:
+                    manual_url = github_raw_url(f"pdfs/{manual_filename}")
+
                 st.success("📑 Manual PDF enviado ao GitHub!")
             else:
                 st.error("Erro ao enviar manual PDF")
