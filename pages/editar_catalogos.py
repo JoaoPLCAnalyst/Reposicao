@@ -2,7 +2,9 @@ import streamlit as st
 import json
 import os
 from PIL import Image
-import base64, requests
+import base64
+import requests
+import time
 
 st.set_page_config(page_title="Editar Catálogo", page_icon="📘")
 
@@ -10,6 +12,7 @@ CATALOGOS_DIR = "clientes"
 IMAGENS_DIR = "imagens"
 PDFS_DIR = "pdfs"
 PRODUTOS_FILE = "database/database.json"
+DEFAULT_BRANCH = st.secrets.get("GITHUB_BRANCH", "main")
 
 # --------------------------------------------------
 # Funções auxiliares
@@ -19,6 +22,7 @@ def carregar_catalogo(caminho):
         return json.load(f)
 
 def salvar_catalogo(caminho, dados):
+    os.makedirs(os.path.dirname(caminho) or ".", exist_ok=True)
     with open(caminho, "w", encoding="utf-8") as f:
         json.dump(dados, f, indent=4, ensure_ascii=False)
 
@@ -29,33 +33,93 @@ def carregar_produtos():
         return json.load(f)
 
 def salvar_produtos(produtos):
+    os.makedirs(os.path.dirname(PRODUTOS_FILE) or ".", exist_ok=True)
     with open(PRODUTOS_FILE, "w", encoding="utf-8") as f:
         json.dump(produtos, f, indent=2, ensure_ascii=False)
 
-def github_upload(path, repo_path, message):
-    """Envia QUALQUER arquivo ao GitHub."""
-    GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
-    GITHUB_REPO = st.secrets["GITHUB_REPO"]
-    GITHUB_USER = st.secrets["GITHUB_USER"]
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
+def _resp_obj(status, text):
+    class R:
+        def __init__(self, status, text):
+            self.status_code = status
+            self._text = text
+        def json(self):
+            try:
+                return json.loads(self._text)
+            except Exception:
+                return {"error": self._text}
+        @property
+        def text(self):
+            return self._text
+    return R(status, text)
 
-    url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{repo_path}"
+def github_raw_url(repo_path):
+    """Monta a URL pública do GitHub para abrir direto no navegador (usa branch configurável)."""
+    user = st.secrets["GITHUB_USER"]
+    repo = st.secrets["GITHUB_REPO"]
+    branch = st.secrets.get("GITHUB_BRANCH", DEFAULT_BRANCH)
+    return f"https://raw.githubusercontent.com/{user}/{repo}/{branch}/{repo_path}"
 
-    with open(path, "rb") as f:
-        content_b64 = base64.b64encode(f.read()).decode()
+def github_upload(path, repo_path, message, max_retries=2):
+    """Envia QUALQUER arquivo ao GitHub (API Contents)."""
+    token = st.secrets["GITHUB_TOKEN"].strip()
+    user = st.secrets["GITHUB_USER"]
+    repo = st.secrets["GITHUB_REPO"]
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
 
-    get_file = requests.get(url, headers=headers)
-    sha = get_file.json().get("sha") if get_file.status_code == 200 else None
+    # quick auth test
+    try:
+        auth_resp = requests.get("https://api.github.com/user", headers=headers, timeout=10)
+    except Exception as e:
+        return _resp_obj(500, f"Auth test failed: {e}")
+    if auth_resp.status_code != 200:
+        return _resp_obj(auth_resp.status_code, auth_resp.text)
+
+    url = f"https://api.github.com/repos/{user}/{repo}/contents/{repo_path}"
+
+    try:
+        with open(path, "rb") as f:
+            content_bytes = f.read()
+    except Exception as e:
+        return _resp_obj(500, f"File read failed: {e}")
+
+    content_b64 = base64.b64encode(content_bytes).decode()
+
+    # GET with retry on 500
+    get_file = None
+    for attempt in range(max_retries):
+        try:
+            get_file = requests.get(url, headers=headers, timeout=15)
+        except Exception as e:
+            if attempt + 1 < max_retries:
+                time.sleep(1)
+                continue
+            else:
+                return _resp_obj(500, f"GET failed: {e}")
+        if get_file.status_code == 500 and attempt + 1 < max_retries:
+            time.sleep(1)
+            continue
+        break
+
+    sha = None
+    if get_file is not None and get_file.status_code == 200:
+        try:
+            sha = get_file.json().get("sha")
+        except Exception:
+            sha = None
 
     payload = {"message": message, "content": content_b64}
     if sha:
         payload["sha"] = sha
 
-    return requests.put(url, headers=headers, json=payload)
+    try:
+        resp = requests.put(url, headers=headers, json=payload, timeout=30)
+    except Exception as e:
+        return _resp_obj(500, f"PUT failed: {e}")
 
-def github_raw_url(repo_path):
-    """Monta a URL pública do GitHub para abrir direto no navegador."""
-    return f"https://raw.githubusercontent.com/{st.secrets['GITHUB_USER']}/{st.secrets['GITHUB_REPO']}/main/{repo_path}"
+    return resp
 
 # --------------------------------------------------
 # Página
@@ -118,10 +182,15 @@ for i, p in enumerate(catalogo["pecas"]):
                 st.rerun()
 
             if confirmar:
+                # Atualiza campos locais
                 catalogo["pecas"][i]["nome"] = nome_input
                 catalogo["pecas"][i]["descricao"] = desc_input
 
                 img_filename = None
+                manual_filename = None
+                manual_url = None
+
+                # Nova imagem: salva localmente e faz upload (mas mantém caminho local no catálogo)
                 if nova_img is not None:
                     ext = nova_img.name.split(".")[-1].lower()
                     if ext == "jpeg":
@@ -138,20 +207,22 @@ for i, p in enumerate(catalogo["pecas"]):
                     image_format = format_map.get(ext)
                     image.save(img_path, format=image_format)
 
-                    catalogo["pecas"][i]["imagem"] = github_raw_url(f"imagens/{img_filename}")
+                    # Mantém caminho local no catálogo (conforme solicitado)
+                    catalogo["pecas"][i]["imagem"] = f"{IMAGENS_DIR}/{img_filename}"
 
+                    # Faz upload ao GitHub (mantendo comportamento anterior)
                     resp_img = github_upload(
                         img_path,
                         f"imagens/{img_filename}",
                         f"Atualizando imagem da peça {p.get('codigo', i)}"
                     )
-                    if resp_img.status_code in [200, 201]:
+                    if getattr(resp_img, "status_code", None) in [200, 201]:
                         st.success("📸 Imagem atualizada no GitHub!")
                     else:
                         st.error("Erro ao atualizar imagem no GitHub")
-                        st.code(resp_img.text)
+                        st.code(getattr(resp_img, "text", str(resp_img)))
 
-                manual_filename = None
+                # Novo PDF: salva localmente, tenta upload e só grava URL pública se upload OK
                 if nova_pdf is not None:
                     manual_filename = f"{p.get('codigo', i)}.pdf"
                     manual_path = os.path.join(PDFS_DIR, manual_filename)
@@ -159,42 +230,42 @@ for i, p in enumerate(catalogo["pecas"]):
                     with open(manual_path, "wb") as f:
                         f.write(nova_pdf.read())
 
-                    manual_url = github_raw_url(f"pdfs/{manual_filename}")
-                    catalogo["pecas"][i]["manual"] = manual_url
-
                     resp_pdf = github_upload(
                         manual_path,
                         f"pdfs/{manual_filename}",
                         f"Atualizando manual PDF da peça {p.get('codigo', i)}"
                     )
-                    if resp_pdf.status_code in [200, 201]:
+                    if getattr(resp_pdf, "status_code", None) in [200, 201]:
+                        manual_url = github_raw_url(f"pdfs/{manual_filename}")
+                        catalogo["pecas"][i]["manual"] = manual_url
                         st.success("📑 Manual PDF atualizado no GitHub!")
                     else:
                         st.error("Erro ao atualizar manual PDF no GitHub")
-                        st.code(resp_pdf.text)
+                        st.code(getattr(resp_pdf, "text", str(resp_pdf)))
 
+                # Atualiza também o database/local produtos (mantendo imagem como caminho local)
                 produtos = carregar_produtos()
                 for prod in produtos:
-                    if prod["codigo"] == p.get("codigo"):
+                    if prod.get("codigo") == p.get("codigo"):
                         prod["nome"] = nome_input
                         prod["descricao"] = desc_input
                         if img_filename:
-                            prod["imagem"] = github_raw_url(f"imagens/{img_filename}")
-                        if manual_filename:
+                            prod["imagem"] = f"{IMAGENS_DIR}/{img_filename}"
+                        if manual_filename and manual_url:
                             prod["manual"] = manual_url
-                    break
+                        break
                 salvar_produtos(produtos)
 
+                # Tenta atualizar database.json no GitHub (se falhar, mantemos local)
                 resp_db = github_upload(
                     PRODUTOS_FILE,
                     "database/database.json",
                     f"Atualizando produto {p.get('codigo')} no database.json"
                 )
-                if resp_db.status_code in [200, 201]:
+                if getattr(resp_db, "status_code", None) in [200, 201]:
                     st.success("📘 database.json atualizado no GitHub!")
                 else:
-                    st.error("Erro ao enviar database.json")
-                    st.code(resp_db.text)
+                    st.warning("database.json salvo localmente; envio ao GitHub falhou ou não autorizado.")
 
                 st.success("Alterações aplicadas localmente. Clique em 'Salvar catálogo' para gravar no arquivo.")
                 st.rerun()
@@ -209,7 +280,7 @@ if remover_indices:
         catalogo["pecas"].pop(idx)
 
         produtos = carregar_produtos()
-        produtos = [prod for prod in produtos if prod["codigo"] != codigo_removido]
+        produtos = [prod for prod in produtos if prod.get("codigo") != codigo_removido]
         salvar_produtos(produtos)
 
         resp_db = github_upload(
@@ -217,11 +288,10 @@ if remover_indices:
             "database/database.json",
             f"Removendo produto {codigo_removido} do database.json"
         )
-        if resp_db.status_code in [200, 201]:
+        if getattr(resp_db, "status_code", None) in [200, 201]:
             st.success("📘 database.json atualizado no GitHub!")
         else:
-            st.error("Erro ao enviar database.json")
-            st.code(resp_db.text)
+            st.warning("database.json salvo localmente; envio ao GitHub falhou ou não autorizado.")
 
     st.success("Peças removidas localmente. Clique em 'Salvar catálogo' para gravar no arquivo.")
     st.rerun()
@@ -271,19 +341,20 @@ if st.button("Adicionar peça"):
                 f"pdfs/{manual_filename}",
                 f"Adicionando manual PDF da peça {codigo_novo}"
             )
-            manual_url = f"https://raw.githubusercontent.com/{st.secrets['GITHUB_USER']}/{st.secrets['GITHUB_REPO']}/main/pdfs/{manual_filename}"
-            if resp_pdf.status_code in [200, 201]:
+            if getattr(resp_pdf, "status_code", None) in [200, 201]:
+                manual_url = github_raw_url(f"pdfs/{manual_filename}")
                 st.success("📑 Manual PDF enviado ao GitHub!")
             else:
                 st.error("Erro ao enviar manual PDF")
-                st.code(resp_pdf.text)
+                st.code(getattr(resp_pdf, "text", str(resp_pdf)))
 
         # ---------------- CRIAR PEÇA ----------------
         nova_peca = {
             "codigo": codigo_novo,
             "nome": nome_novo,
             "descricao": desc_novo,
-            "imagem": f"https://raw.githubusercontent.com/{st.secrets['GITHUB_USER']}/{st.secrets['GITHUB_REPO']}/main/imagens/{img_filename}"
+            # manter imagem como caminho local (conforme solicitado)
+            "imagem": f"{IMAGENS_DIR}/{img_filename}"
         }
         if manual_url:
             nova_peca["manual"] = manual_url
@@ -294,27 +365,26 @@ if st.button("Adicionar peça"):
         produtos.append(nova_peca)
         salvar_produtos(produtos)
 
+        # Faz upload da imagem ao GitHub (mantendo comportamento anterior)
         resp_img = github_upload(
             img_path,
             f"imagens/{img_filename}",
             f"Adicionando imagem da peça {codigo_novo}"
         )
-        if resp_img.status_code in [200, 201]:
+        if getattr(resp_img, "status_code", None) in [200, 201]:
             st.success("📸 Imagem enviada ao GitHub!")
         else:
-            st.error("Erro ao enviar imagem")
-            st.code(resp_img.text)
+            st.warning("Imagem salva localmente; envio ao GitHub falhou ou não autorizado.")
 
         resp_db = github_upload(
             PRODUTOS_FILE,
             "database/database.json",
             f"Atualizando database.json após adicionar produto {codigo_novo}"
         )
-        if resp_db.status_code in [200, 201]:
+        if getattr(resp_db, "status_code", None) in [200, 201]:
             st.success("📘 database.json atualizado no GitHub!")
         else:
-            st.error("Erro ao enviar database.json")
-            st.code(resp_db.text)
+            st.warning("database.json salvo localmente; envio ao GitHub falhou ou não autorizado.")
 
         st.success("Peça adicionada com sucesso! Clique em 'Salvar catálogo' para gravar no arquivo.")
         st.rerun()
@@ -333,10 +403,9 @@ if st.button("💾 Salvar catálogo"):
         f"clientes/{nome_catalogo}",
         f"Atualizando catálogo do cliente {cliente_edit}"
     )
-    if resp_json.status_code in [200, 201]:
+    if getattr(resp_json, "status_code", None) in [200, 201]:
         st.success("🎉 Catálogo atualizado e enviado ao GitHub!")
     else:
-        st.error("❌ Erro ao enviar catálogo")
-        st.code(resp_json.text)
+        st.warning("Catálogo salvo localmente; envio ao GitHub falhou ou não autorizado.")
 
     st.rerun()
