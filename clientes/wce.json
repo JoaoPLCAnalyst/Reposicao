@@ -1,0 +1,14 @@
+{
+  "cliente": "WCE",
+  "vendedor": "Stefany",
+  "contato": "+5515997266165",
+  "pecas": [
+    {
+      "codigo": "soft starter 360",
+      "nome": "soft",
+      "descricao": "soft",
+      "imagem": "imagens/soft starter 360.png",
+      "manual": "https://raw.githubusercontent.com/JoaoPLCAnalyst/Reposicao/main/pdfs/soft starter 360.pdf"
+    }
+  ]
+}
