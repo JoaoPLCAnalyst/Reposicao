@@ -95,7 +95,7 @@ if cliente_id == "":
     st.subheader("👤 Acessar Catálogo")
     nome_cliente_digitado = st.text_input("Nome do Catálogo:")
 
-    if st.button("Entrar como Cliente"):
+    if st.button("Pesquisar catalogo"):
         if nome_cliente_digitado.strip() == "":
             st.error("Digite o nome do Catálogo.")
         else:
@@ -152,6 +152,18 @@ for codigo in codigos_pecas:
 # 3. EXIBIR LISTA DE PEÇAS
 # -----------------------------------------------------------
 st.header(f"Reposição de Peças — {nome_cliente}")
+col1, col2 = st.columns([1, 8])
+with col1:
+    if st.button("⬅️ Voltar"):
+            # limpa o query param 'cliente' e provoca rerun
+            st.experimental_set_query_params()
+            st.experimental_rerun()
+with col2:
+        # link de fallback (apenas visual)
+    st.markdown("[Voltar para a lista de catálogos](?cliente=)", unsafe_allow_html=True)
+
+st.markdown("---")
+
 st.subheader("Selecione as peças desejadas abaixo:")
 
 pecas_selecionadas = []

@@ -180,6 +180,19 @@ if cliente_slug:
     # 3. EXIBIR LISTA DE PEÇAS (comportamento original)
     # -----------------------------------------------------------
     st.header(f"Reposição de Peças — {nome_cliente}")
+    # botão de voltar para a lista de seleção do catálogo
+    col1, col2 = st.columns([1, 8])
+    with col1:
+        if st.button("⬅️ Voltar"):
+            # limpa o query param 'cliente' e provoca rerun
+            st.experimental_set_query_params()
+            st.experimental_rerun()
+    with col2:
+        # link de fallback (apenas visual)
+        st.markdown("[Voltar para a lista de catálogos](?cliente=)", unsafe_allow_html=True)
+
+    st.markdown("---")
+
     st.subheader("Selecione as peças desejadas abaixo:")
 
     pecas_selecionadas = []
