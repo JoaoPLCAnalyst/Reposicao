@@ -78,8 +78,19 @@ def pdf_button(url: str, label: str = "📘 Abrir manual"):
 # 0. TELA INICIAL — APARECE QUANDO NÃO TEM CLIENTE NA URL
 # -----------------------------------------------------------
 
-query_params = st.query_params
-cliente_id = query_params.get("cliente", "")
+# leitura consistente dos query params usando experimental_get_query_params
+try:
+    params = st.experimental_get_query_params()
+    cliente_param = params.get("cliente", [None])[0]
+    cliente_id = cliente_param or ""
+except Exception:
+    # fallback seguro para ambientes onde experimental_* não esteja disponível
+    qp = getattr(st, "query_params", {})
+    raw = qp.get("cliente", "")
+    if isinstance(raw, list):
+        cliente_id = raw[0] if raw else ""
+    else:
+        cliente_id = raw or ""
 
 if cliente_id == "":
     st.markdown("<h1 class='title-center'>🔧 Sistema de Catálogo WCE</h1>", unsafe_allow_html=True)
@@ -89,7 +100,12 @@ if cliente_id == "":
     # ---------------- LOGIN ADMIN ----------------
     st.subheader("🔐 Área do Administrador")
     if st.button("Entrar como Admin"):
-        st.switch_page("pages/admin.py")
+        # use o NOME da página conforme aparece no menu lateral
+        try:
+            st.switch_page("Admin")
+        except Exception:
+            # fallback: não faz nada se switch_page não estiver disponível
+            pass
 
     # ---------------- LOGIN CLIENTE ----------------
     st.subheader("👤 Acessar Catálogo")
@@ -99,8 +115,23 @@ if cliente_id == "":
         if nome_cliente_digitado.strip() == "":
             st.error("Digite o nome do Catálogo.")
         else:
-            st.query_params["cliente"] = nome_cliente_digitado.lower().replace(" ", "_")
-            st.rerun()
+            slug = nome_cliente_digitado.lower().replace(" ", "_")
+            # escreve query param de forma consistente
+            try:
+                st.experimental_set_query_params(cliente=slug)
+                # experimental_set_query_params normalmente provoca rerun; tentar garantir
+                try:
+                    st.experimental_rerun()
+                except Exception:
+                    st.rerun()
+            except Exception:
+                # fallback: manipula st.query_params diretamente e rerun
+                try:
+                    if hasattr(st, "query_params"):
+                        st.query_params["cliente"] = slug
+                except Exception:
+                    pass
+                st.rerun()
 
     st.stop()
 
@@ -155,8 +186,21 @@ st.header(f"Catalogo de Peças — {nome_cliente}")
 col1, col2 = st.columns([1, 8])
 with col1:
     if st.button("⬅️ Voltar"):
-            # limpa o query param 'cliente' e provoca rerun
+        # tenta limpar query params usando experimental_set_query_params
+        try:
             st.experimental_set_query_params()
+        except Exception:
+            # fallback: limpar st.query_params sem misturar APIs
+            try:
+                if hasattr(st, "query_params"):
+                    st.query_params.clear()
+            except Exception:
+                pass
+
+        # rerun com fallback
+        try:
+            st.experimental_rerun()
+        except Exception:
             st.rerun()
 st.subheader("Selecione as peças desejadas abaixo:")
 
