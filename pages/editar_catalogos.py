@@ -8,31 +8,36 @@ import time
 
 st.set_page_config(page_title="Editar Catálogo", page_icon="📘")
 
-# =========================
-# REQUISITO: estar logado como admin (global)
-# =========================
-if not st.session_state.get("is_admin"):
+# --------------------------------------------------
+# Autenticação local nesta página (login integrado)
+# --------------------------------------------------
+# Inicializa flag de admin na sessão se não existir
+if "is_admin" not in st.session_state:
+    st.session_state["is_admin"] = False
+
+# Se não estiver autenticado, exibe o formulário de login local
+if not st.session_state["is_admin"]:
     st.title("🔐 Área Administrativa")
-    st.warning("Acesso restrito: faça login com o usuário administrador na página de login para acessar esta área.")
-    st.stop()
-
-# =========================
-# LOGIN LOCAL (mantido conforme solicitado)
-# =========================
-if "auth" not in st.session_state:
-    st.session_state.auth = False
-
-if not st.session_state.auth:
-    st.title("🔐 Área Administrativa (login local)")
-    senha = st.text_input("Senha", type="password")
+    st.write("Faça login com a senha de administrador para editar catálogos.")
+    senha = st.text_input("Senha de administrador", type="password", key="login_senha")
     if st.button("Entrar"):
-        if senha == st.secrets["ADMIN_PASSWORD"]:
-            st.session_state.auth = True
-            st.rerun()
+        # usa a senha armazenada em secrets (mesma chave usada no resto do app)
+        try:
+            admin_pass = st.secrets["ADMIN_PASSWORD"]
+        except Exception:
+            admin_pass = None
+
+        if admin_pass and senha == admin_pass:
+            st.session_state["is_admin"] = True
+            st.success("Login realizado com sucesso.")
+            st.experimental_rerun()
         else:
-            st.error("Senha incorreta")
+            st.error("Senha incorreta. Tente novamente.")
     st.stop()
 
+# =========================
+# Página continua aqui (usuário autenticado)
+# =========================
 CATALOGOS_DIR = "clientes"
 IMAGENS_DIR = "imagens"
 PDFS_DIR = "pdfs"
