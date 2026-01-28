@@ -17,7 +17,7 @@ if "is_admin" not in st.session_state:
 
 # Se não estiver autenticado, exibe o formulário de login local
 if not st.session_state["is_admin"]:
-    st.title("🔐 Área Administrativa")
+    st.title("🔐 Área Restrita")
     senha = st.text_input("digite a senha", type="password", key="login_senha")
     if st.button("Entrar"):
         # usa a senha armazenada em secrets (mesma chave usada no resto do app)
