@@ -18,25 +18,39 @@ st.set_page_config(page_title="WCE", layout="wide")
 logo_base64 = img_to_base64("imagens/Logo.png")
 render_header(logo_base64)
 
+ADMIN_PASSWORD = "SV2024"
 
 # -----------------------------------------------------------
-# ESTILO (cards, botões e miniaturas)
+# ESTILO (cards, botões, miniaturas e animações suaves)
 # -----------------------------------------------------------
 st.markdown(
     """
     <style>
+    /* animações */
+    @keyframes fadeUp {
+        0% { opacity: 0; transform: translateY(8px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes glow {
+        0% { box-shadow: 0 6px 18px rgba(8, 54, 92, 0.04); }
+        50% { box-shadow: 0 10px 28px rgba(8, 54, 92, 0.08); }
+        100% { box-shadow: 0 6px 18px rgba(8, 54, 92, 0.04); }
+    }
+
     .card {
         background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
         border-radius: 12px;
         padding: 18px;
         box-shadow: 0 6px 18px rgba(8, 54, 92, 0.08);
-        transition: transform .12s ease-in-out;
+        transition: transform .18s cubic-bezier(.2,.9,.3,1), box-shadow .18s;
         height: 100%;
+        animation: fadeUp .28s ease both;
     }
-    .card:hover { transform: translateY(-4px); }
+    .card:hover { transform: translateY(-6px) scale(1.01); animation: glow 2.2s infinite ease-in-out; }
     .card-title { font-size: 18px; font-weight:700; color:#08365c; margin-bottom:6px; }
     .card-sub { color:#4b5563; margin-bottom:10px; }
     .card-meta { color:#6b7280; font-size:13px; margin-bottom:12px; }
+
     .open-btn {
         display:inline-block;
         text-decoration:none !important;
@@ -46,13 +60,17 @@ st.markdown(
         color:white !important;
         font-weight:700;
         box-shadow: 0 4px 12px rgba(8,54,92,0.12);
+        transition: transform .12s, box-shadow .12s;
     }
+    .open-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(8,54,92,0.16); }
+
     .preview {
         border-radius:12px;
         padding:14px;
         background:linear-gradient(180deg,#ffffff,#fbfdff);
         box-shadow: 0 8px 24px rgba(8,54,92,0.06);
         margin-top:18px;
+        animation: fadeUp .28s ease both;
     }
     .thumb {
         width:120px;
@@ -60,10 +78,17 @@ st.markdown(
         object-fit:cover;
         border-radius:8px;
         border:1px solid #e6eef8;
+        transition: transform .12s ease, box-shadow .12s;
     }
+    .thumb:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(8,54,92,0.08); }
     .thumb-title { font-size:13px; font-weight:600; color:#08365c; margin-top:6px; }
     .thumb-sub { font-size:12px; color:#6b7280; }
     .grid { gap: 18px; }
+
+    /* responsividade simples */
+    @media (max-width: 900px) {
+        .thumb { width:100px; height:72px; }
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -286,23 +311,11 @@ for i, c in enumerate(clientes):
         btn_open = st.button("Abrir Catálogo", key=f"open_{slug}")
 
         if btn_preview:
+            # apenas abre a pré‑visualização em session_state — não altera query nem força rerun
             st.session_state["preview_cliente"] = slug
-            # tenta sincronizar query param também (não obrigatório)
-            try:
-                st.experimental_set_query_params(cliente=slug)
-            except Exception:
-                pass
-            try:
-                st.rerun()
-            except Exception:
-                pass
 
         if btn_open:
             abrir_catalogo_por_slug(slug)
-
-        # link alternativo (apenas visual)
-        cliente_url = urllib.parse.quote(slug)
-        st.markdown(f'<div style="margin-top:8px;"><a href="?cliente={cliente_url}" class="open-btn" style="background:#0b5fa5">Abrir via link</a></div>', unsafe_allow_html=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
