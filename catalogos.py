@@ -185,7 +185,7 @@ if cliente_slug:
     with col1:
         if st.button("⬅️ Voltar"):
             # limpa o query param 'cliente' e provoca rerun
-            st.set_query_params()
+            st.set_query_params(cliente=None)
             st.rerun()
     st.subheader("Selecione as peças desejadas abaixo:")
 
