@@ -21,58 +21,38 @@ render_header(logo_base64)
 ADMIN_PASSWORD = "SV2024"
 
 # -----------------------------------------------------------
-# ESTILO DA TELA INICIAL
+# ESTILO (cards e botões)
 # -----------------------------------------------------------
-st.markdown("""
-<style>
-.box {
-    padding: 25px;
-    border-radius: 12px;
-    background-color: #f5f5f5;
-    border: 1px solid #ddd;
-    margin-bottom: 25px;
-}
-.title-center {
-    text-align: center;
-}
-.pdf-button {
-    display:inline-block;
-    text-decoration: none !important;
-    padding:8px 14px;
-    border-radius:8px;
-    background:#08365c;
-    color:white !important;
-    font-weight:600;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    margin-top:8px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# -------------------------
-# Função: botão estilizado para PDF (apenas para a exibição do catálogo do cliente)
-# -------------------------
-def pdf_button(url: str, label: str = "📘 Abrir manual"):
+st.markdown(
     """
-    Exibe um botão estilizado que abre `url` em nova aba.
-    Use apenas na página do cliente; não altera outros módulos.
-    """
-    if not url:
-        st.info("Sem manual disponível.")
-        return
-
-    # Escapa a URL para segurança
-    safe_url = urllib.parse.quote(url, safe=":/?&=#%")
-
-    button_html = f"""
-    <div>
-      <a href="{safe_url}" target="_blank" rel="noopener noreferrer" class="pdf-button">
-        {label}
-      </a>
-    </div>
-    """
-    st.markdown(button_html, unsafe_allow_html=True)
-
+    <style>
+    .card {
+        background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+        border-radius: 12px;
+        padding: 18px;
+        box-shadow: 0 6px 18px rgba(8, 54, 92, 0.08);
+        transition: transform .12s ease-in-out;
+        height: 100%;
+    }
+    .card:hover { transform: translateY(-4px); }
+    .card-title { font-size: 18px; font-weight:700; color:#08365c; margin-bottom:6px; }
+    .card-sub { color:#4b5563; margin-bottom:10px; }
+    .card-meta { color:#6b7280; font-size:13px; margin-bottom:12px; }
+    .open-btn {
+        display:inline-block;
+        text-decoration:none !important;
+        padding:10px 16px;
+        border-radius:10px;
+        background:#08365c;
+        color:white !important;
+        font-weight:700;
+        box-shadow: 0 4px 12px rgba(8,54,92,0.12);
+    }
+    .grid { gap: 18px; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 # -----------------------------------------------------------
 # PASTA DE CLIENTES (lista / arquivos individuais)
@@ -80,9 +60,8 @@ def pdf_button(url: str, label: str = "📘 Abrir manual"):
 CLIENTES_DIR = "clientes"
 os.makedirs(CLIENTES_DIR, exist_ok=True)
 
-
 # -------------------------
-# Helpers para a lista de clientes
+# Helpers
 # -------------------------
 def listar_clientes():
     arquivos = [f for f in os.listdir(CLIENTES_DIR) if f.endswith(".json")]
@@ -92,23 +71,17 @@ def listar_clientes():
         try:
             with open(caminho, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            cliente = data.get("cliente", "Sem nome")
-            vendedor = data.get("vendedor", "—")
-            pecas = data.get("pecas", [])
-            qtd_pecas = len(pecas)
             clientes.append({
-                "cliente": cliente,
-                "vendedor": vendedor,
-                "qtd_pecas": qtd_pecas
+                "cliente": data.get("cliente", "Sem nome"),
+                "vendedor": data.get("vendedor", "—"),
+                "qtd_pecas": len(data.get("pecas", []))
             })
         except Exception as e:
             # não interrompe a listagem por um arquivo corrompido
             st.error(f"Erro ao ler {arq}: {e}")
     return clientes
 
-
 def carregar_cliente_por_slug(slug: str):
-    """Procura e retorna o conteúdo do arquivo do cliente cujo slug bate com `slug`."""
     slug = (slug or "").lower()
     for arq in os.listdir(CLIENTES_DIR):
         if not arq.endswith(".json"):
@@ -117,40 +90,91 @@ def carregar_cliente_por_slug(slug: str):
         try:
             with open(caminho, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            nome = data.get("cliente", "")
-            nome_slug = nome.lower().replace(" ", "_")
+            nome_slug = data.get("cliente", "").lower().replace(" ", "_")
             if nome_slug == slug:
                 return data
         except Exception:
             continue
     return None
 
+def abrir_catalogo_por_slug(slug: str):
+    """
+    Tenta abrir o catálogo definindo query param; se não for possível,
+    usa session_state como fallback e força rerun.
+    """
+    slug = slug or ""
+    # tenta setar query param (quando disponível)
+    try:
+        st.experimental_set_query_params(cliente=slug)
+        # experimental_set_query_params normalmente provoca rerun; tentar garantir
+        try:
+            st.experimental_rerun()
+        except Exception:
+            st.rerun()
+        return
+    except Exception:
+        # fallback: usa session_state
+        st.session_state["cliente_atual"] = slug
+        try:
+            st.rerun()
+        except Exception:
+            # se st.rerun também falhar, apenas retorna e a UI será atualizada no próximo evento
+            return
 
 # -------------------------
-# Lógica principal: detectar query param e decidir o que renderizar
+# Inicializa session_state
 # -------------------------
-params = st.experimental_get_query_params()
-cliente_param = params.get("cliente", [None])[0]
-cliente_slug = cliente_param or ""
+if "cliente_atual" not in st.session_state:
+    st.session_state["cliente_atual"] = None
 
-# Se houver cliente na query, renderiza o catálogo correspondente
-if cliente_slug:
-    # decodifica caso venha codificado
-    cliente_slug = urllib.parse.unquote(cliente_slug)
+# Se a query tiver cliente, sincroniza com session_state
+try:
+    params = st.experimental_get_query_params()
+    cliente_param = params.get("cliente", [None])[0]
+    if cliente_param:
+        st.session_state["cliente_atual"] = urllib.parse.unquote(cliente_param)
+except Exception:
+    # se experimental_get_query_params falhar, tenta ler st.query_params (se existir)
+    try:
+        qp = getattr(st, "query_params", {})
+        val = qp.get("cliente", "")
+        if isinstance(val, list):
+            st.session_state["cliente_atual"] = val[0] if val else None
+        else:
+            st.session_state["cliente_atual"] = val or None
+    except Exception:
+        pass
+
+# -----------------------------------------------------------
+# Se cliente selecionado na sessão, delega para a página de catálogo
+# (mantém comportamento original de exibição do catálogo)
+# -----------------------------------------------------------
+if st.session_state["cliente_atual"]:
+    cliente_slug = st.session_state["cliente_atual"]
     dados_cliente = carregar_cliente_por_slug(cliente_slug)
 
     if dados_cliente is None:
         st.warning("Cliente não encontrado. Verifique o nome ou volte à lista.")
-        st.markdown('[⬅️ Voltar para a lista](?cliente=)', unsafe_allow_html=True)
+        if st.button("⬅️ Voltar para a lista"):
+            st.session_state["cliente_atual"] = None
+            try:
+                st.experimental_set_query_params()
+            except Exception:
+                try:
+                    if hasattr(st, "query_params"):
+                        st.query_params.clear()
+                except Exception:
+                    pass
+            try:
+                st.experimental_rerun()
+            except Exception:
+                st.rerun()
         st.stop()
 
-    # -----------------------------------------------------------
-    # 1. PROCESSAR CLIENTE (comportamento original)
-    # -----------------------------------------------------------
+    # Renderiza catálogo (mesmo comportamento que você já tinha)
     nome_cliente = dados_cliente.get("cliente", cliente_slug)
     contato_vendedor = dados_cliente.get("contato", "")
 
-    # Normalizar lista de peças do cliente
     pecas_raw = dados_cliente.get("pecas", [])
     codigos_pecas = []
     for item in pecas_raw:
@@ -162,11 +186,7 @@ if cliente_slug:
         else:
             codigos_pecas.append(item)
 
-    # -----------------------------------------------------------
-    # 2. CARREGAR BASE DE PRODUTOS DO DATABASE.JSON
-    # -----------------------------------------------------------
     pecas_bd = carregar_database()
-
     pecas = []
     for codigo in codigos_pecas:
         if codigo in pecas_bd:
@@ -176,33 +196,40 @@ if cliente_slug:
         else:
             st.warning(f"⚠ Peça '{codigo}' não encontrada no database.")
 
-    # -----------------------------------------------------------
-    # 3. EXIBIR LISTA DE PEÇAS (comportamento original)
-    # -----------------------------------------------------------
-    st.header(f"Reposição de Peças — {nome_cliente}")
-    # botão de voltar para a lista de seleção do catálogo
+    # Cabeçalho do catálogo com botão Voltar
     col1, col2 = st.columns([1, 8])
     with col1:
         if st.button("⬅️ Voltar"):
-            # limpa o query param 'cliente' e provoca rerun.
-            st.experimental_set_query_params()
-            st.rerun()
+            st.session_state["cliente_atual"] = None
+            try:
+                st.experimental_set_query_params()
+            except Exception:
+                try:
+                    if hasattr(st, "query_params"):
+                        st.query_params.clear()
+                except Exception:
+                    pass
+            try:
+                st.experimental_rerun()
+            except Exception:
+                st.rerun()
+    with col2:
+        st.header(f"Reposição de Peças — {nome_cliente}")
+
     st.subheader("Selecione as peças desejadas abaixo:")
 
     pecas_selecionadas = []
     quantidades = {}
 
     st.subheader("📦 Lista de Peças Disponíveis")
-
     for idx, peca in enumerate(pecas):
         st.markdown("---")
-        # renderiza o componente visual da peça (mantém comportamento atual)
         render_peca(peca, idx, quantidades, pecas_selecionadas)
-
-        # Ao exibir o catálogo para o cliente, se a peça tiver manual, mostramos um botão estilizado
         manual_url = peca.get("manual")
         if manual_url:
-            pdf_button(manual_url, "📘 Abrir manual")
+            # botão estilizado para manual
+            safe_url = urllib.parse.quote(manual_url, safe=":/?&=#%")
+            st.markdown(f'<a href="{safe_url}" target="_blank" rel="noopener noreferrer" class="open-btn">📘 Abrir manual</a>', unsafe_allow_html=True)
 
     if not pecas_selecionadas:
         st.warning("Selecione pelo menos uma peça para continuar.")
@@ -212,48 +239,44 @@ if cliente_slug:
     mensagem = f"Pedido de Reposição de Peças\nCliente: {nome_cliente}\n\nItens Selecionados:\n{texto_itens}"
     render_wpp_button(contato_vendedor, mensagem)
 
-    st.markdown("")  # espaçamento
-    st.markdown('[⬅️ Voltar para a lista](?cliente=)', unsafe_allow_html=True)
     st.stop()
 
 # -----------------------------------------------------------
-# Caso não haja cliente na query, mostra a lista de clientes
+# Lista de catálogos (nova UI em cards)
 # -----------------------------------------------------------
-st.title("Lista de Clientes Cadastrados")
+st.title("Catálogos Disponíveis")
+st.write("Escolha um catálogo para visualizar os itens e fazer pedidos.")
 
-clientes_dados = listar_clientes()
-
-if not clientes_dados:
-    st.warning("Nenhum cliente cadastrado ainda.")
+clientes = listar_clientes()
+if not clientes:
+    st.warning("Nenhum catálogo cadastrado ainda.")
     st.stop()
 
-# ================================================
-# TABELA RESUMIDA
-# ================================================
-st.subheader("📊 Visão Geral")
-# st.dataframe não interpreta Markdown; mostramos tabela simples com st.table
-tabela = []
-for c in clientes_dados:
-    tabela.append({
-        "Cliente": c["cliente"],
-        "Vendedor": c["vendedor"],
-        "Itens no catálogo": c["qtd_pecas"]
-    })
-st.table(tabela)
+# Grid responsivo: 3 colunas (ajusta conforme largura)
+cols = st.columns(3, gap="large")
+for i, c in enumerate(clientes):
+    col = cols[i % 3]
+    slug = c["cliente"].lower().replace(" ", "_")
+    with col:
+        st.markdown(
+            f"""
+            <div class="card">
+                <div class="card-title">{c['cliente']}</div>
+                <div class="card-sub">Vendedor: <strong>{c['vendedor']}</strong></div>
+                <div class="card-meta">Itens no catálogo: <strong>{c['qtd_pecas']}</strong></div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-st.markdown(
-    "<style>td, th {padding: 10px}</style>",
-    unsafe_allow_html=True
-)
+        # botão estilizado que abre o catálogo (usa função abrir_catalogo_por_slug)
+        if st.button("Abrir Catálogo", key=f"open_{slug}"):
+            abrir_catalogo_por_slug(slug)
 
-# ================================================
-# CARDS DETALHADOS COM LINKS (apontam para ?cliente=slug)
-# ================================================
-st.subheader("🗂 Detalhes dos Clientes")
+        # link alternativo (apenas visual)
+        cliente_url = urllib.parse.quote(slug)
+        st.markdown(f'<div style="margin-top:8px;"><a href="?cliente={cliente_url}" class="open-btn" style="background:#0b5fa5">Abrir via link</a></div>', unsafe_allow_html=True)
 
-for c in clientes_dados:
-    cliente_url = urllib.parse.quote(c["cliente"].lower().replace(" ", "_"))
-    # link relativo correto (sem barra escapada)
-    st.markdown(f"### 👤 <a href='?cliente={cliente_url}' target='_self'>{c['cliente']}</a>", unsafe_allow_html=True)
-    st.write(f"**Vendedor:** {c['vendedor']}")
-    st.write(f"**Itens no catálogo:** {c['qtd_pecas']}")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# Espaçamento final
+st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
