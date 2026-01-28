@@ -8,6 +8,31 @@ import time
 
 st.set_page_config(page_title="Editar Catálogo", page_icon="📘")
 
+# =========================
+# REQUISITO: estar logado como admin (global)
+# =========================
+if not st.session_state.get("is_admin"):
+    st.title("🔐 Área Administrativa")
+    st.warning("Acesso restrito: faça login com o usuário administrador na página de login para acessar esta área.")
+    st.stop()
+
+# =========================
+# LOGIN LOCAL (mantido conforme solicitado)
+# =========================
+if "auth" not in st.session_state:
+    st.session_state.auth = False
+
+if not st.session_state.auth:
+    st.title("🔐 Área Administrativa (login local)")
+    senha = st.text_input("Senha", type="password")
+    if st.button("Entrar"):
+        if senha == st.secrets["ADMIN_PASSWORD"]:
+            st.session_state.auth = True
+            st.rerun()
+        else:
+            st.error("Senha incorreta")
+    st.stop()
+
 CATALOGOS_DIR = "clientes"
 IMAGENS_DIR = "imagens"
 PDFS_DIR = "pdfs"

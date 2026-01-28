@@ -1,3 +1,4 @@
+# Streamlit page name: Catálogo de Produtos
 import streamlit as st
 import json
 import os
