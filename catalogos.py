@@ -18,10 +18,9 @@ st.set_page_config(page_title="WCE", layout="wide")
 logo_base64 = img_to_base64("imagens/Logo.png")
 render_header(logo_base64)
 
-ADMIN_PASSWORD = "SV2024"
 
 # -----------------------------------------------------------
-# ESTILO (cards e botões)
+# ESTILO (cards, botões e miniaturas)
 # -----------------------------------------------------------
 st.markdown(
     """
@@ -48,6 +47,22 @@ st.markdown(
         font-weight:700;
         box-shadow: 0 4px 12px rgba(8,54,92,0.12);
     }
+    .preview {
+        border-radius:12px;
+        padding:14px;
+        background:linear-gradient(180deg,#ffffff,#fbfdff);
+        box-shadow: 0 8px 24px rgba(8,54,92,0.06);
+        margin-top:18px;
+    }
+    .thumb {
+        width:120px;
+        height:90px;
+        object-fit:cover;
+        border-radius:8px;
+        border:1px solid #e6eef8;
+    }
+    .thumb-title { font-size:13px; font-weight:600; color:#08365c; margin-top:6px; }
+    .thumb-sub { font-size:12px; color:#6b7280; }
     .grid { gap: 18px; }
     </style>
     """,
@@ -77,7 +92,6 @@ def listar_clientes():
                 "qtd_pecas": len(data.get("pecas", []))
             })
         except Exception as e:
-            # não interrompe a listagem por um arquivo corrompido
             st.error(f"Erro ao ler {arq}: {e}")
     return clientes
 
@@ -103,22 +117,18 @@ def abrir_catalogo_por_slug(slug: str):
     usa session_state como fallback e força rerun.
     """
     slug = slug or ""
-    # tenta setar query param (quando disponível)
     try:
         st.experimental_set_query_params(cliente=slug)
-        # experimental_set_query_params normalmente provoca rerun; tentar garantir
         try:
             st.experimental_rerun()
         except Exception:
             st.rerun()
         return
     except Exception:
-        # fallback: usa session_state
         st.session_state["cliente_atual"] = slug
         try:
             st.rerun()
         except Exception:
-            # se st.rerun também falhar, apenas retorna e a UI será atualizada no próximo evento
             return
 
 # -------------------------
@@ -126,15 +136,16 @@ def abrir_catalogo_por_slug(slug: str):
 # -------------------------
 if "cliente_atual" not in st.session_state:
     st.session_state["cliente_atual"] = None
+if "preview_cliente" not in st.session_state:
+    st.session_state["preview_cliente"] = None
 
-# Se a query tiver cliente, sincroniza com session_state
+# Sincroniza query param com session_state quando possível
 try:
     params = st.experimental_get_query_params()
     cliente_param = params.get("cliente", [None])[0]
     if cliente_param:
         st.session_state["cliente_atual"] = urllib.parse.unquote(cliente_param)
 except Exception:
-    # se experimental_get_query_params falhar, tenta ler st.query_params (se existir)
     try:
         qp = getattr(st, "query_params", {})
         val = qp.get("cliente", "")
@@ -227,7 +238,6 @@ if st.session_state["cliente_atual"]:
         render_peca(peca, idx, quantidades, pecas_selecionadas)
         manual_url = peca.get("manual")
         if manual_url:
-            # botão estilizado para manual
             safe_url = urllib.parse.quote(manual_url, safe=":/?&=#%")
             st.markdown(f'<a href="{safe_url}" target="_blank" rel="noopener noreferrer" class="open-btn">📘 Abrir manual</a>', unsafe_allow_html=True)
 
@@ -252,7 +262,10 @@ if not clientes:
     st.warning("Nenhum catálogo cadastrado ainda.")
     st.stop()
 
-# Grid responsivo: 3 colunas (ajusta conforme largura)
+# Carrega database para prévisualizações
+pecas_bd = carregar_database()
+
+# Grid responsivo: 3 colunas
 cols = st.columns(3, gap="large")
 for i, c in enumerate(clientes):
     col = cols[i % 3]
@@ -268,8 +281,23 @@ for i, c in enumerate(clientes):
             unsafe_allow_html=True,
         )
 
-        # botão estilizado que abre o catálogo (usa função abrir_catalogo_por_slug)
-        if st.button("Abrir Catálogo", key=f"open_{slug}"):
+        # Botões: Pré-visualizar e Abrir Catálogo
+        btn_preview = st.button("Pré‑visualizar", key=f"preview_{slug}")
+        btn_open = st.button("Abrir Catálogo", key=f"open_{slug}")
+
+        if btn_preview:
+            st.session_state["preview_cliente"] = slug
+            # tenta sincronizar query param também (não obrigatório)
+            try:
+                st.experimental_set_query_params(cliente=slug)
+            except Exception:
+                pass
+            try:
+                st.rerun()
+            except Exception:
+                pass
+
+        if btn_open:
             abrir_catalogo_por_slug(slug)
 
         # link alternativo (apenas visual)
@@ -278,5 +306,57 @@ for i, c in enumerate(clientes):
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-# Espaçamento final
-st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+# -----------------------------------------------------------
+# Painel de pré-visualização (quando definido)
+# -----------------------------------------------------------
+if st.session_state.get("preview_cliente"):
+    preview_slug = st.session_state["preview_cliente"]
+    preview_data = carregar_cliente_por_slug(preview_slug)
+    if preview_data:
+        st.markdown("<div class='preview'>", unsafe_allow_html=True)
+        col_a, col_b = st.columns([3, 1])
+        with col_a:
+            st.markdown(f"### Pré‑visualização — {preview_data.get('cliente','—')}")
+            st.write(f"**Vendedor:** {preview_data.get('vendedor','—')}")
+            st.write(f"**Total de itens:** {len(preview_data.get('pecas', []))}")
+            st.markdown("---")
+
+            # mostra até 6 miniaturas com nome e código
+            pecas_preview = preview_data.get("pecas", [])[:6]
+            thumbs_cols = st.columns(len(pecas_preview) if pecas_preview else 1)
+            for idx, p in enumerate(pecas_preview):
+                pc = pecas_preview[idx]
+                # resolve dados da peça a partir do database se for código
+                if isinstance(pc, dict):
+                    codigo = pc.get("codigo") or pc.get("codigo", "")
+                else:
+                    codigo = pc
+                detalhe = pecas_bd.get(codigo, {}) if pecas_bd else {}
+                nome = detalhe.get("nome") or (pc.get("nome") if isinstance(pc, dict) else codigo)
+                imagem = detalhe.get("imagem") or (pc.get("imagem") if isinstance(pc, dict) else None)
+
+                with thumbs_cols[idx]:
+                    if imagem:
+                        try:
+                            st.image(imagem, width=120)
+                        except Exception:
+                            st.markdown(f"<div style='width:120px;height:90px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#6b7280;border:1px solid #e6eef8'>{codigo}</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"<div style='width:120px;height:90px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#6b7280;border:1px solid #e6eef8'>{codigo}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='thumb-title'>{nome}</div><div class='thumb-sub'>{codigo}</div>", unsafe_allow_html=True)
+
+        with col_b:
+            if st.button("Abrir Catálogo", key=f"preview_open_{preview_slug}"):
+                abrir_catalogo_por_slug(preview_slug)
+            if st.button("Fechar Pré‑visualização", key=f"preview_close_{preview_slug}"):
+                st.session_state["preview_cliente"] = None
+                try:
+                    st.experimental_set_query_params()
+                except Exception:
+                    pass
+                try:
+                    st.rerun()
+                except Exception:
+                    pass
+
+        st.markdown("</div>", unsafe_allow_html=True)
