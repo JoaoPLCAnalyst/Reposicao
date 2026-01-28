@@ -151,7 +151,7 @@ for codigo in codigos_pecas:
 # -----------------------------------------------------------
 # 3. EXIBIR LISTA DE PEÇAS
 # -----------------------------------------------------------
-st.header(f"Reposição de Peças — {nome_cliente}")
+st.header(f"Catalogo de Peças — {nome_cliente}")
 col1, col2 = st.columns([1, 8])
 with col1:
     if st.button("⬅️ Voltar"):
@@ -180,5 +180,5 @@ if not pecas_selecionadas:
     st.stop()
 
 texto_itens = "\n".join([f"- {p['nome']} (código {p['codigo']}) — Quantidade: {quantidades[p['codigo']]}" for p in pecas_selecionadas])
-mensagem = f"Pedido de Reposição de Peças\nCliente: {nome_cliente}\n\nItens Selecionados:\n{texto_itens}"
+mensagem = f"Pedido de Aquisição de Peças\nCliente: {nome_cliente}\n\nItens Selecionados:\n{texto_itens}"
 render_wpp_button(contato_vendedor, mensagem)

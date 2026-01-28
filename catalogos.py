@@ -250,7 +250,7 @@ if st.session_state["cliente_atual"]:
             except Exception:
                 st.rerun()
     with col2:
-        st.header(f"Reposição de Peças — {nome_cliente}")
+        st.header(f"Catalogo de Peças — {nome_cliente}")
 
     st.subheader("Selecione as peças desejadas abaixo:")
 
@@ -271,7 +271,7 @@ if st.session_state["cliente_atual"]:
         st.stop()
 
     texto_itens = "\n".join([f"- {p['nome']} (código {p['codigo']}) — Quantidade: {quantidades[p['codigo']]}" for p in pecas_selecionadas])
-    mensagem = f"Pedido de Reposição de Peças\nCliente: {nome_cliente}\n\nItens Selecionados:\n{texto_itens}"
+    mensagem = f"Pedido de Aquisição de Peças\nCliente: {nome_cliente}\n\nItens Selecionados:\n{texto_itens}"
     render_wpp_button(contato_vendedor, mensagem)
 
     st.stop()
