@@ -1,195 +1,102 @@
-# components/catalog_card.py
 import streamlit as st
 import os
 import urllib.parse
 
-def render_catalog_card(
-    slug: str,
-    cliente_name: str,
-    qtd_pecas: int,
-    preview_img: str = None,
-    preview_title: str = "",
-    key_suffix: str = ""
-) -> bool:
+def render_catalog_card(slug: str, cliente_name: str, qtd_pecas: int,
+                        preview_img: str = None, preview_title: str = "",
+                        key_suffix: str = "") -> bool:
     """
-    Renderiza um card retangular com:
-    - texto (nome, qtd, subtítulo, botão funcional) à esquerda
-    - imagem à direita (dentro do mesmo retângulo)
-    Retorna True se o botão "Abrir Catálogo" for clicado.
+    Renderiza um card de catálogo com:
+    - texto à esquerda
+    - imagem à direita (usando st.image para compatibilidade)
+    - botão funcional do Streamlit (branco) que retorna True quando clicado
     """
 
-    # Injeta CSS apenas uma vez
-    css_flag = "_wce_card_css_vfinal"
-    if css_flag not in st.session_state:
+    # Injeta CSS leve apenas para aparência do card (não estiliza o st.button)
+    css_key = "_catalog_card_css_injected"
+    if css_key not in st.session_state:
         st.markdown(
             """
             <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-
-            .wce-card {
-                display:flex;
-                align-items:center;
-                justify-content:space-between;
-                gap:18px;
-                background: #ffffff;
+            .wce-card-wrap {
+                background: linear-gradient(180deg,#ffffff 0%,#f7fbff 100%);
                 border-radius: 12px;
-                padding: 14px;
+                padding: 10px;
                 box-shadow: 0 8px 24px rgba(8,54,92,0.06);
-                border: 1px solid rgba(230,238,248,1);
+                transition: transform .18s ease, box-shadow .18s ease;
                 overflow: hidden;
-                width:100%;
-                box-sizing:border-box;
             }
-
-            .wce-left {
-                flex: 1 1 auto;
-                min-width: 0;
-                display:flex;
-                flex-direction:column;
-                gap:8px;
-            }
-
-            .wce-title {
-                font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-                font-size: 18px;
-                font-weight: 700;
-                color: #08365c;
-                margin: 0;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            .wce-meta {
-                color: #475569;
-                font-size: 13px;
-                margin: 0;
-            }
-
-            .wce-sub {
-                color: #6b7280;
-                font-size: 13px;
-                margin: 0;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            .wce-actions {
-                margin-top: 6px;
-                display:flex;
-                gap:8px;
-                align-items:center;
-            }
-
-            /* botão visual (apenas visual) — ação real via st.button */
-            .wce-visual-btn {
-                display:inline-block;
-                padding:8px 14px;
-                border-radius:8px;
-                background:#ffffff;
-                color:#08365c;
-                font-weight:700;
-                font-size:13px;
-                border:1px solid rgba(8,54,92,0.06);
-                box-shadow: 0 4px 12px rgba(8,54,92,0.06);
-                text-decoration:none !important;
-            }
-
-            /* Caixa da imagem à direita (retângulo com border-radius) */
-            .wce-thumb {
-                width: 180px;
-                height: 110px;
-                flex-shrink: 0;
-                border-radius: 10px;
-                overflow: hidden;
-                background: #f1f5f9 center/cover no-repeat;
-                border: 1px solid rgba(230,238,248,1);
-                display:flex;
-                align-items:center;
-                justify-content:center;
-            }
-
-            .wce-thumb img {
-                width:100%;
-                height:100%;
-                object-fit:cover;
-                display:block;
-            }
-
+            .wce-card-wrap:hover { transform: translateY(-4px); box-shadow: 0 14px 40px rgba(8,54,92,0.08); }
+            .wce-title { font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; font-size:18px; font-weight:700; color:#08365c; margin:0 0 6px 0; }
+            .wce-sub { font-family: 'Inter'; color:#6b7280; font-size:13px; margin:0 0 8px 0; }
+            .wce-meta { font-family: 'Inter'; color:#475569; font-size:13px; margin:0; }
             .wce-thumb-fallback {
-                color:#6b7280;
-                font-weight:700;
-                font-size:20px;
+                width:160px;height:100px;border-radius:10px;background:#f1f5f9;border:1px solid #e6eef8;display:flex;align-items:center;justify-content:center;color:#6b7280;font-weight:700;
             }
-
-            @media (max-width: 900px) {
-                .wce-thumb { width:120px; height:80px; }
-                .wce-title { font-size:16px; }
+            @media (max-width:900px){
+                .wce-thumb-fallback { width:120px;height:80px; }
             }
             </style>
             """,
             unsafe_allow_html=True,
         )
-        st.session_state[css_flag] = True
+        st.session_state[css_key] = True
 
-    # Normaliza e valida preview_img
-    img_src = None
-    if preview_img and isinstance(preview_img, str):
-        src = preview_img.strip()
-        if src.startswith("http://") or src.startswith("https://"):
-            img_src = src
-        else:
-            # tenta caminhos locais relativos ao app
-            if os.path.exists(src):
-                img_src = src.replace("\\", "/")
-            else:
-                alt = src.lstrip("/")
-                if os.path.exists(alt):
-                    img_src = alt.replace("\\", "/")
-                else:
-                    img_src = None
-
-    # Renderiza o card inteiro dentro de um único wrapper
+    # Container do card
     with st.container():
-        # abre wrapper
-        st.markdown('<div class="wce-card">', unsafe_allow_html=True)
+        st.markdown('<div class="wce-card-wrap">', unsafe_allow_html=True)
 
-        # lado esquerdo: texto e botão funcional
-        st.markdown('<div class="wce-left">', unsafe_allow_html=True)
-        st.markdown(f'<div class="wce-title">{cliente_name}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="wce-meta">Itens no catálogo: <strong>{qtd_pecas}</strong></div>', unsafe_allow_html=True)
-        if preview_title:
-            st.markdown(f'<div class="wce-sub">{preview_title}</div>', unsafe_allow_html=True)
+        # Colunas: texto (2) | imagem (1) -> imagem ficará à direita
+        cols = st.columns([2, 1], gap="small")
 
-        # ações: botão funcional do Streamlit (branco)
-        st.markdown('<div class="wce-actions">', unsafe_allow_html=True)
-        btn_key = f"open_{slug}_{key_suffix}"
-        clicked = st.button("Abrir Catálogo", key=btn_key)
-        # opcional: botão visual ao lado (não substitui ação)
-        st.markdown('<a class="wce-visual-btn" href="javascript:void(0)">Ver catálogo</a>', unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)  # fecha wce-actions
+        # Coluna do texto e ações (esquerda)
+        with cols[0]:
+            st.markdown(f'<div class="wce-title">{cliente_name}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="wce-meta">Itens no catálogo: <strong>{qtd_pecas}</strong></div>', unsafe_allow_html=True)
+            if preview_title:
+                st.markdown(f'<div class="wce-sub">{preview_title}</div>', unsafe_allow_html=True)
 
-        st.markdown('</div>', unsafe_allow_html=True)  # fecha wce-left
+            # Espaço para ações: usamos st.button (branco padrão do Streamlit) para manter comportamento
+            btn_key = f"open_{slug}_{key_suffix}"
+            st.write("")  # quebra de linha leve
+            clicked = st.button("Abrir Catálogo", key=btn_key)
 
-        # lado direito: imagem dentro do mesmo retângulo
-        if img_src:
-            # para URLs externas, quote; para caminhos locais, usa caminho direto
-            if img_src.startswith("http://") or img_src.startswith("https://"):
-                safe_bg = urllib.parse.quote(img_src, safe=":/?&=#%")
-                thumb_html = f'<div class="wce-thumb" style="background-image: url(\'{safe_bg}\');"></div>'
-                st.markdown(thumb_html, unsafe_allow_html=True)
-            else:
-                # caminho local: renderiza <img> dentro do div para garantir carregamento
-                local_path = img_src.replace("'", "\\'")
-                thumb_html = f'<div class="wce-thumb"><img src="{local_path}" alt="thumb" /></div>'
-                st.markdown(thumb_html, unsafe_allow_html=True)
-        else:
-            initials = (cliente_name[:2] or "CL").upper()
-            fallback_html = f'<div class="wce-thumb"><div class="wce-thumb-fallback">{initials}</div></div>'
-            st.markdown(fallback_html, unsafe_allow_html=True)
+        # Coluna da imagem (direita) — usa st.image para garantir compatibilidade
+        with cols[1]:
+            shown_image = False
+            if preview_img and isinstance(preview_img, str):
+                src = preview_img.strip()
+                # URL externa
+                if src.startswith("http://") or src.startswith("https://"):
+                    try:
+                        st.image(src, width=160, use_column_width=False)
+                        shown_image = True
+                    except Exception:
+                        shown_image = False
+                else:
+                    # caminho local relativo
+                    if os.path.exists(src):
+                        try:
+                            st.image(src, width=160, use_column_width=False)
+                            shown_image = True
+                        except Exception:
+                            shown_image = False
+                    else:
+                        # tenta sem leading slash
+                        alt = src.lstrip("/")
+                        if os.path.exists(alt):
+                            try:
+                                st.image(alt, width=160, use_column_width=False)
+                                shown_image = True
+                            except Exception:
+                                shown_image = False
 
-        # fecha wrapper
-        st.markdown('</div>', unsafe_allow_html=True)
+            if not shown_image:
+                # fallback visual com iniciais
+                initials = (cliente_name[:2] or "CL").upper()
+                st.markdown(f'<div class="wce-thumb-fallback">{initials}</div>', unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     return clicked
