@@ -1,184 +1,118 @@
-# components/catalog_card.py
 import streamlit as st
 import urllib.parse
 import os
 import base64
 from typing import Optional
 
-DEBUG_SHOW_PATH = False  # Ative para debug de caminhos (True/False)
-
 def _local_image_to_data_uri(path: str) -> Optional[str]:
-    """Retorna data URI (base64) para a imagem local ou None se não existir/erro."""
     try:
-        if not path:
-            return None
+        if not path: return None
+        # Se for um caminho relativo, completa com o diretório atual
         if not os.path.isabs(path):
             path = os.path.join(os.getcwd(), path)
-        if not os.path.exists(path):
-            return None
+        if not os.path.exists(path): return None
+        
         ext = os.path.splitext(path)[1].lower()
-        mime = "image/png"
-        if ext in [".jpg", ".jpeg"]:
-            mime = "image/jpeg"
-        elif ext == ".gif":
-            mime = "image/gif"
-        elif ext == ".webp":
-            mime = "image/webp"
+        mime = "image/png" if ext == ".png" else "image/jpeg"
         with open(path, "rb") as f:
-            b = f.read()
-        b64 = base64.b64encode(b).decode("utf-8")
+            b64 = base64.b64encode(f.read()).decode("utf-8")
         return f"data:{mime};base64,{b64}"
-    except Exception:
-        return None
+    except: return None
 
 def render_catalog_card(slug: str,
                         cliente_name: str,
+                        preview_title: str,
                         qtd_pecas: int,
                         preview_img: Optional[str] = None,
-                        preview_title: str = "",
-                        key_suffix: Optional[str] = None) -> bool:
-    """
-    Renderiza o card alinhado tanto em desktop quanto em mobile.
-    Estratégia:
-      - Não altera o header.
-      - Envolve o card em um container responsivo com largura EXATA quando possível,
-        mas que encolhe em telas pequenas (width:100% + max-width).
-      - Usa padding lateral consistente (15px) para alinhar início/fim com o header.
-      - Evita width fixa absoluta que quebre o layout em celulares.
-    """
-    css_key = "_card_html_css_responsive_parent"
-    if css_key not in st.session_state:
-        st.markdown("""
+                        is_new: bool = False):
+    
+    # CSS para o Card com Corte Diagonal
+    st.markdown("""
         <style>
-        /*
-         * Container pai responsivo (aplica-se apenas ao card, não altera header)
-         * - width:100% garante que o container nunca ultrapasse a viewport em mobile
-         * - max-width define a largura máxima em telas grandes (ajuste 1200px se desejar)
-         * - padding lateral 15px mantém alinhamento visual com header
-         * - box-sizing:border-box para cálculos previsíveis
-         *
-         * Resultado: no desktop o conteúdo fica centralizado até max-width; no mobile
-         * o container encolhe e mantém 15px de padding nas laterais, garantindo
-         * alinhamento esquerdo/direito igual ao header.
-         */
-
-        .card-page-container {
-            width: 100%;            /* ocupa toda a largura disponível da coluna/pai */
-            width: 4000px;      /* largura máxima em telas grandes */
-            margin: 0 auto;         /* centraliza em telas largas */
-            padding: 0 15px;        /* padding lateral igual ao header */
-            box-sizing: border-box;
+        .card-container {
+            display: flex;
+            background: white;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            overflow: hidden;
+            border: 1px solid #eee;
+            min-height: 160px;
+            font-family: 'Inter', sans-serif;
+        }
+        .card-content {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .card-title { color: #002d4b; font-size: 1.2rem; font-weight: 700; margin: 0; }
+        .card-sub { color: #666; font-size: 0.85rem; margin-top: 4px; }
+        .card-qty { color: #333; font-size: 0.9rem; margin: 12px 0; font-weight: 600; }
+        
+        .card-btn {
+            background: #2e6d5a; /* Verde da imagem */
+            color: white !important;
+            text-decoration: none;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            width: fit-content;
+            transition: 0.3s;
         }
 
-        .card-html {
-            display:flex;
-            align-items:stretch;
-            justify-content:space-between;
-            gap:16px;
-            background:#ffffff;
-            border-radius:12px;
-            padding:0;                 /* padding interno vertical em .card-left */
-            box-shadow:0 8px 24px rgba(8,54,92,0.06);
-            border:1px solid rgba(230,238,248,1);
-            box-sizing:border-box;
-            width:100%;                /* ocupa 100% da área interna do .card-page-container */
-            margin-bottom:12px;
-            overflow:hidden;
-            min-height:110px;
+        .card-image-side {
+            flex: 0 0 42%;
+            position: relative;
+            background-color: #f8f9fa;
         }
-
-        /* conteúdo interno: padding vertical; horizontal já vem do .card-page-container */
-        .card-left {
-            flex:1 1 auto;
-            min-width:0;
-            padding:15px 0;            /* padding vertical; horizontal controlado pelo container */
-            display:flex;
-            flex-direction:column;
-            justify-content:center;
-            gap:6px;
+        .img-cut {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            /* O CORTE DIAGONAL */
+            clip-path: polygon(18% 0, 100% 0, 100% 100%, 0% 100%);
         }
-
-        .card-title { font-weight:700; color:#08365c; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:Inter,system-ui,sans-serif; font-size:18px; }
-        .card-meta { color:#475569; font-size:13px; margin:0; font-family:Inter,system-ui,sans-serif; }
-        .card-sub { color:#6b7280; font-size:13px; margin:6px 0 0 0; font-family:Inter,system-ui,sans-serif; }
-        .card-btn { display:inline-block; margin-top:10px; padding:8px 14px; background:#ffffff; color:#08365c; border-radius:8px; border:1px solid rgba(8,54,92,0.06); text-decoration:none; font-weight:700; font-family:Inter,system-ui,sans-serif; }
-
-        .card-thumb {
-            flex: 0 0 36%;
-            height:100%;
-            border-radius:0;
-            overflow:hidden;
-            background:#f1f5f9 center/cover no-repeat;
-            background-size:cover;
-            background-position:center;
-            clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
-            -webkit-clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
-        }
-
-        /* Responsividade: mantém alinhamento lateral idêntico no mobile */
-        @media (max-width:1200px){
-            .card-thumb { flex: 0 0 40%; }
-            .card-title{ font-size:16px; }
-            .card-html { min-height:90px; }
-        }
-
-        @media (max-width:700px){
-            /* Em telas pequenas, o container encolhe (width:100% do pai) e mantém padding lateral */
-            .card-page-container { padding: 0 12px; } /* reduz levemente o padding em mobile se desejar */
-            .card-html { flex-direction:column; border-radius:12px; }
-            .card-left { padding:12px 0; }
-            .card-thumb { width:100%; height:160px; clip-path:none; -webkit-clip-path:none; border-radius:0 0 12px 12px; flex:0 0 auto; }
+        .badge-new {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: #f4d36f;
+            color: #333;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            z-index: 10;
         }
         </style>
-        """, unsafe_allow_html=True)
-        st.session_state[css_key] = True
+    """, unsafe_allow_html=True)
 
-    # prepara atributo de estilo da thumb com background-size e position
-    thumb_attr = ""
+    # Processa a imagem (URL ou Local)
+    img_display = ""
     if preview_img:
-        preview_img = preview_img.strip()
-        # URL externa
-        if preview_img.startswith("http://") or preview_img.startswith("https://"):
-            safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
-            thumb_attr = f"style=\"background-image:url('{safe}'); background-size:cover; background-position:center;\""
+        if preview_img.startswith(("http", "https")):
+            img_display = preview_img
         else:
-            # tenta converter caminho local para data URI
-            data_uri = _local_image_to_data_uri(preview_img)
-            if data_uri:
-                thumb_attr = f"style=\"background-image:url('{data_uri}'); background-size:cover; background-position:center;\""
-            else:
-                # fallback: tenta usar o caminho tal qual (útil se a pasta for servida estaticamente)
-                safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
-                thumb_attr = f"style=\"background-image:url('{safe}'); background-size:cover; background-position:center;\""
+            img_display = _local_image_to_data_uri(preview_img) or ""
 
-    href = f"?open={urllib.parse.quote(slug)}"
+    badge_html = '<div class="badge-new">NOVO</div>' if is_new else ''
+    href = f"?cliente={urllib.parse.quote(slug)}"
 
-    # fallback visual quando não há imagem válida
-    if not thumb_attr:
-        thumb_div = '<div class="card-thumb" style="background:#e6eef8; display:flex; align-items:center; justify-content:center; color:#6b7280; font-weight:700;">SEM IMAGEM</div>'
-    else:
-        thumb_div = f'<div class="card-thumb" {thumb_attr}></div>'
-
-    # Renderiza o card DENTRO do container responsivo .card-page-container
     html = f"""
-    <div class="card-page-container">
-      <div class="card-html">
-        <div class="card-left">
-          <div class="card-title">{cliente_name}</div>
-          <div class="card-meta">Itens no catálogo: <strong>{qtd_pecas}</strong></div>
-          {"<div class='card-sub'>" + preview_title + "</div>" if preview_title else ""}
-          <div><a class="card-btn" href="{href}">Abrir Catálogo</a></div>
+    <div class="card-container">
+        <div class="card-content">
+            <h3 class="card-title">{cliente_name}</h3>
+            <p class="card-sub">{preview_title}</p>
+            <p class="card-qty"><strong>{qtd_pecas}</strong> produtos</p>
+            <a href="{href}" target="_self" class="card-btn">Ver catálogo</a>
         </div>
-        {thumb_div}
-      </div>
+        <div class="card-image-side">
+            {badge_html}
+            <img src="{img_display}" class="img-cut">
+        </div>
     </div>
     """
     st.markdown(html, unsafe_allow_html=True)
-
-    # debug opcional: mostra se o arquivo existe no caminho resolvido
-    if DEBUG_SHOW_PATH and preview_img:
-        abs_path = preview_img if os.path.isabs(preview_img) else os.path.join(os.getcwd(), preview_img)
-        exists = os.path.exists(abs_path)
-        st.write(f"DEBUG preview_img: {preview_img} | abs_path: {abs_path} | exists: {exists}")
-
-    return False
