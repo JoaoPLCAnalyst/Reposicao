@@ -2,129 +2,40 @@ import streamlit as st
 import os
 import urllib.parse
 
-# Renderiza um card de catálogo com imagem à esquerda, título, meta e botão.
-# Retorna True se o botão funcional do Streamlit for clicado.
 def render_catalog_card(slug: str, cliente_name: str, qtd_pecas: int,
                         preview_img: str = None, preview_title: str = "",
                         key_suffix: str = "") -> bool:
     """
-    Parâmetros:
-    - slug: identificador do cliente (usado para keys)
-    - cliente_name: nome exibido do catálogo
-    - qtd_pecas: número de itens no catálogo
-    - preview_img: URL externa ou caminho local relativo para a imagem do primeiro item
-    - preview_title: texto pequeno exibido abaixo do meta
-    - key_suffix: sufixo para keys de botões (evita colisão)
+    Renderiza um card de catálogo usando componentes nativos do Streamlit.
+    - A imagem é exibida com st.image (funciona para URLs externas e caminhos locais).
+    - O botão funcional que abre o catálogo é um st.button branco (comportamento preservado).
+    - Retorna True se o botão for clicado.
     """
 
-    # Injeta CSS apenas uma vez por sessão para evitar duplicação
+    # Injeta CSS leve apenas para aparência do card (não estiliza o st.button)
     css_key = "_catalog_card_css_injected"
     if css_key not in st.session_state:
         st.markdown(
             """
             <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-            :root{
-              --card-bg: linear-gradient(180deg,#ffffff 0%,#f7fbff 100%);
-              --accent: #0b5fff;
-              --muted: #6b7280;
-              --title: #08365c;
-              --radius: 12px;
-              --shadow: 0 8px 24px rgba(8,54,92,0.06);
-            }
-            body, .stApp { font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
-
-            .wce-card {
-                display:flex;
-                gap:16px;
-                align-items:center;
-                background: var(--card-bg);
-                border-radius: var(--radius);
-                padding: 14px;
-                box-shadow: var(--shadow);
+            .wce-card-wrap {
+                background: linear-gradient(180deg,#ffffff 0%,#f7fbff 100%);
+                border-radius: 12px;
+                padding: 10px;
+                box-shadow: 0 8px 24px rgba(8,54,92,0.06);
                 transition: transform .18s ease, box-shadow .18s ease;
                 overflow: hidden;
-                min-height: 110px;
             }
-            .wce-card:hover { transform: translateY(-6px); box-shadow: 0 14px 40px rgba(8,54,92,0.10); }
-
-            .wce-thumb {
-                width: 160px;
-                height: 100px;
-                flex-shrink: 0;
-                border-radius: 10px;
-                overflow: hidden;
-                background: linear-gradient(180deg,#eef6ff,#ffffff);
-                border: 1px solid #e6eef8;
-                display:flex;
-                align-items:center;
-                justify-content:center;
+            .wce-card-wrap:hover { transform: translateY(-4px); box-shadow: 0 14px 40px rgba(8,54,92,0.08); }
+            .wce-title { font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; font-size:18px; font-weight:700; color:#08365c; margin:0 0 6px 0; }
+            .wce-sub { font-family: 'Inter'; color:#6b7280; font-size:13px; margin:0 0 8px 0; }
+            .wce-meta { font-family: 'Inter'; color:#475569; font-size:13px; margin:0; }
+            .wce-thumb-fallback {
+                width:160px;height:100px;border-radius:10px;background:#f1f5f9;border:1px solid #e6eef8;display:flex;align-items:center;justify-content:center;color:#6b7280;font-weight:700;
             }
-            .wce-thumb img {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-                display:block;
-            }
-
-            .wce-body {
-                flex:1;
-                display:flex;
-                flex-direction:column;
-                justify-content:center;
-                min-width:0;
-            }
-            .wce-title {
-                font-size: 18px;
-                font-weight: 700;
-                color: var(--title);
-                line-height:1.05;
-                margin-bottom:6px;
-                white-space:nowrap;
-                overflow:hidden;
-                text-overflow:ellipsis;
-            }
-            .wce-sub {
-                color: var(--muted);
-                font-size: 13px;
-                margin-bottom:8px;
-                display:block;
-                white-space:nowrap;
-                overflow:hidden;
-                text-overflow:ellipsis;
-            }
-            .wce-meta {
-                color: #475569;
-                font-size: 13px;
-                margin-bottom:8px;
-            }
-
-            .wce-actions {
-                display:flex;
-                gap:8px;
-                align-items:center;
-                margin-top:6px;
-            }
-
-            .wce-open-btn {
-                display:inline-block;
-                text-decoration:none !important;
-                padding:10px 16px;
-                border-radius:10px;
-                background: var(--accent);
-                color:white !important;
-                font-weight:700;
-                font-size:14px;
-                border: 0;
-                box-shadow: 0 6px 18px rgba(11,95,255,0.14);
-                transition: transform .12s, box-shadow .12s;
-            }
-            .wce-open-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(11,95,255,0.18); }
-
-            @media (max-width: 900px) {
-                .wce-card { flex-direction:row; gap:12px; padding:12px; }
-                .wce-thumb { width:120px; height:80px; }
-                .wce-title { font-size:16px; }
+            @media (max-width:900px){
+                .wce-thumb-fallback { width:120px;height:80px; }
             }
             </style>
             """,
@@ -132,63 +43,57 @@ def render_catalog_card(slug: str, cliente_name: str, qtd_pecas: int,
         )
         st.session_state[css_key] = True
 
-    # Normaliza preview_img
-    img_src = None
-    is_external = False
-    if preview_img and isinstance(preview_img, str):
-        preview_img = preview_img.strip()
-        if preview_img.startswith("http://") or preview_img.startswith("https://"):
-            img_src = preview_img
-            is_external = True
-        else:
-            # caminho local relativo
-            if os.path.exists(preview_img):
-                # converte para caminho relativo (funciona no Streamlit)
-                img_src = preview_img
-            else:
-                # tenta remover leading slash e verificar
-                alt_path = preview_img.lstrip("/")
-                if os.path.exists(alt_path):
-                    img_src = alt_path
+    # Container do card
+    with st.container():
+        st.markdown('<div class="wce-card-wrap">', unsafe_allow_html=True)
+        cols = st.columns([1, 2], gap="small")
+        # Coluna da imagem (usa st.image para garantir compatibilidade)
+        with cols[0]:
+            shown_image = False
+            if preview_img and isinstance(preview_img, str):
+                src = preview_img.strip()
+                # URL externa
+                if src.startswith("http://") or src.startswith("https://"):
+                    try:
+                        st.image(src, width=160, use_column_width=False)
+                        shown_image = True
+                    except Exception:
+                        shown_image = False
                 else:
-                    img_src = None
+                    # caminho local relativo
+                    if os.path.exists(src):
+                        try:
+                            st.image(src, width=160, use_column_width=False)
+                            shown_image = True
+                        except Exception:
+                            shown_image = False
+                    else:
+                        # tenta sem leading slash
+                        alt = src.lstrip("/")
+                        if os.path.exists(alt):
+                            try:
+                                st.image(alt, width=160, use_column_width=False)
+                                shown_image = True
+                            except Exception:
+                                shown_image = False
 
-    # Monta HTML do card (imagem via <img> para URLs externas e caminhos locais)
-    if img_src:
-        # Escapa atributos mínimos
-        safe_img = urllib.parse.quote(img_src, safe=":/?&=#%")
-        card_html = f"""
-        <div class="wce-card">
-          <div class="wce-thumb">
-            <img src="{safe_img}" alt="thumb" />
-          </div>
-          <div class="wce-body">
-            <div class="wce-title">{cliente_name}</div>
-            <div class="wce-meta">Itens no catálogo: <strong>{qtd_pecas}</strong></div>
-            <div class="wce-sub">{preview_title}</div>
-            <div class="wce-actions">
-              <a class="wce-open-btn" href="javascript:void(0)" id="open_{slug}_{key_suffix}">Ver catálogo</a>
-            </div>
-          </div>
-        </div>
-        """
-    else:
-        initials = (cliente_name[:2] or "CL").upper()
-        card_html = f"""
-        <div class="wce-card">
-          <div class="wce-thumb">
-            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#6b7280;font-weight:700">{initials}</div>
-          </div>
-          <div class="wce-body">
-            <div class="wce-title">{cliente_name}</div>
-            <div class="wce-meta">Itens no catálogo: <strong>{qtd_pecas}</strong></div>
-          </div>
-        </div>
-        """
+            if not shown_image:
+                # fallback visual com iniciais
+                initials = (cliente_name[:2] or "CL").upper()
+                st.markdown(f'<div class="wce-thumb-fallback">{initials}</div>', unsafe_allow_html=True)
 
-    st.markdown(card_html, unsafe_allow_html=True)
+        # Coluna do texto e ações (mantemos st.button branco funcional)
+        with cols[1]:
+            st.markdown(f'<div class="wce-title">{cliente_name}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="wce-meta">Itens no catálogo: <strong>{qtd_pecas}</strong></div>', unsafe_allow_html=True)
+            if preview_title:
+                st.markdown(f'<div class="wce-sub">{preview_title}</div>', unsafe_allow_html=True)
 
-    # Botão funcional do Streamlit (ação real)
-    btn_key = f"open_{slug}_{key_suffix}"
-    clicked = st.button("Abrir Catálogo", key=btn_key)
+            # Espaço para ações: usamos st.button (branco padrão do Streamlit) para manter comportamento
+            btn_key = f"open_{slug}_{key_suffix}"
+            # Pequeno espaçamento visual antes do botão
+            st.write("")  # quebra de linha leve
+            clicked = st.button("Abrir Catálogo", key=btn_key)
+        st.markdown("</div>", unsafe_allow_html=True)
+
     return clicked
