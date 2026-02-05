@@ -47,7 +47,7 @@ def render_catalog_card(slug: str,
         <style>
         /* ELEMENTO PAI EXPLÍCITO: controla largura e padding do pai do card */
         .page-container {
-            max-width: 3000px;    /* <-- largura explícita do elemento pai */
+            max-width: 30000px;    /* <-- largura explícita do elemento pai */
             margin: 0 auto;       /* centraliza o container na viewport */
             padding: 0 15px;      /* <-- padding lateral explícito (alinha com header) */
             box-sizing: border-box;
