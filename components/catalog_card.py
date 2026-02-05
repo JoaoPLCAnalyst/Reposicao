@@ -4,7 +4,10 @@ import os
 import base64
 from typing import Optional
 
+DEBUG_SHOW_PATH = False  # Ative para debug de caminhos (True/False)
+
 def _local_image_to_data_uri(path: str) -> Optional[str]:
+    """Retorna data URI (base64) para a imagem local ou None se não existir/erro."""
     try:
         if not os.path.isabs(path):
             path = os.path.join(os.getcwd(), path)
@@ -32,7 +35,8 @@ def render_catalog_card(slug: str,
                         preview_title: str = "",
                         key_suffix: Optional[str] = None) -> bool:
     """
-    Card HTML com miniatura ocupando toda a lateral direita e corte diagonal.
+    Renderiza o card mantendo a estrutura original.
+    A imagem ocupa toda a lateral direita e tem corte diagonal.
     Retorna False (a ação de abrir catálogo é tratada via query param no app).
     """
     css_key = "_card_html_css"
@@ -47,7 +51,7 @@ def render_catalog_card(slug: str,
             gap:16px;
             background:#ffffff;
             border-radius:12px;
-            padding:0; /* padding interno será na coluna esquerda */
+            padding:0;
             box-shadow:0 8px 24px rgba(8,54,92,0.06);
             border:1px solid rgba(230,238,248,1);
             box-sizing:border-box;
@@ -72,20 +76,20 @@ def render_catalog_card(slug: str,
 
         /* miniatura ocupa toda a lateral direita; clip-path cria o corte diagonal */
         .card-thumb {
-            flex: 0 0 40%; /* ajuste a largura da miniatura aqui (ex.: 35% a 45%) */
+            flex: 0 0 40%;               /* largura da miniatura — ajuste aqui se quiser */
             height:100%;
-            border-radius:0; /* borda do wrapper já controla o radius */
+            border-radius:0;
             overflow:hidden;
             background:#f1f5f9 center/cover no-repeat;
             border-left:1px solid rgba(230,238,248,1);
             display:block;
+            background-size:cover;
+            background-position:center;
             /* diagonal: corta a borda esquerda da miniatura em diagonal */
             clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
             -webkit-clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
-            transform-origin: center;
         }
 
-        /* responsividade: reduz a largura da thumb em telas pequenas */
         @media (max-width:900px){
             .card-thumb { flex: 0 0 35%; }
             .card-title{ font-size:16px; }
@@ -100,16 +104,22 @@ def render_catalog_card(slug: str,
         preview_img = preview_img.strip()
         if preview_img.startswith("http://") or preview_img.startswith("https://"):
             safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
-            thumb_attr = f"style=\"background-image:url('{safe}');\""
+            thumb_attr = f"style=\"background-image:url('{safe}'); background-size:cover; background-position:center;\""
         else:
             data_uri = _local_image_to_data_uri(preview_img)
             if data_uri:
-                thumb_attr = f"style=\"background-image:url('{data_uri}');\""
+                thumb_attr = f"style=\"background-image:url('{data_uri}'); background-size:cover; background-position:center;\""
             else:
                 safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
-                thumb_attr = f"style=\"background-image:url('{safe}');\""
+                thumb_attr = f"style=\"background-image:url('{safe}'); background-size:cover; background-position:center;\""
 
     href = f"?open={urllib.parse.quote(slug)}"
+
+    # Se não houver thumb_attr válido, mostra fallback visual
+    if not thumb_attr:
+        thumb_div = '<div class="card-thumb" style="background:#e6eef8; display:flex; align-items:center; justify-content:center; color:#6b7280; font-weight:700;">SEM IMAGEM</div>'
+    else:
+        thumb_div = f'<div class="card-thumb" {thumb_attr}></div>'
 
     html = f"""
     <div class="card-html">
@@ -119,8 +129,13 @@ def render_catalog_card(slug: str,
         {"<div class='card-sub'>" + preview_title + "</div>" if preview_title else ""}
         <div><a class="card-btn" href="{href}">Abrir Catálogo</a></div>
       </div>
-      <div class="card-thumb" {thumb_attr}></div>
+      {thumb_div}
     </div>
     """
     st.markdown(html, unsafe_allow_html=True)
+
+    if DEBUG_SHOW_PATH and preview_img:
+        exists = os.path.exists(preview_img) if os.path.isabs(preview_img) else os.path.exists(os.path.join(os.getcwd(), preview_img))
+        st.write(f"DEBUG preview_img: {preview_img} | exists: {exists}")
+
     return False
