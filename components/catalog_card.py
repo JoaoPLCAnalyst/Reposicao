@@ -1,6 +1,33 @@
+# components/catalog_card.py
 import streamlit as st
 import urllib.parse
+import os
+import base64
 from typing import Optional
+
+def _local_image_to_data_uri(path: str) -> Optional[str]:
+    """Retorna data URI (base64) para a imagem local ou None se não existir/erro."""
+    try:
+        if not os.path.isabs(path):
+            # garante caminho relativo ao diretório do app
+            path = os.path.join(os.getcwd(), path)
+        if not os.path.exists(path):
+            return None
+        mime = "image/png"
+        # tenta inferir pelo sufixo
+        ext = os.path.splitext(path)[1].lower()
+        if ext in [".jpg", ".jpeg"]:
+            mime = "image/jpeg"
+        elif ext == ".gif":
+            mime = "image/gif"
+        elif ext == ".webp":
+            mime = "image/webp"
+        with open(path, "rb") as f:
+            b = f.read()
+        b64 = base64.b64encode(b).decode("utf-8")
+        return f"data:{mime};base64,{b64}"
+    except Exception:
+        return None
 
 def render_catalog_card(slug: str,
                         cliente_name: str,
@@ -8,14 +35,6 @@ def render_catalog_card(slug: str,
                         preview_img: Optional[str] = None,
                         preview_title: str = "",
                         key_suffix: Optional[str] = None) -> bool:
-    """
-    Renderiza um card em HTML (um único retângulo) com:
-    - nome, quantidade e botão (link) à esquerda
-    - imagem à direita
-
-    Compatível com chamadas que passam key_suffix. Retorna False para manter compatibilidade.
-    A ação de abrir catálogo é feita via query param ?open=slug (tratada no app principal).
-    """
     css_key = "_card_html_css"
     if css_key not in st.session_state:
         st.markdown("""
@@ -36,8 +55,20 @@ def render_catalog_card(slug: str,
 
     thumb_attr = ""
     if preview_img:
-        safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
-        thumb_attr = f"style=\"background-image:url('{safe}');\""
+        preview_img = preview_img.strip()
+        # externa?
+        if preview_img.startswith("http://") or preview_img.startswith("https://"):
+            safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
+            thumb_attr = f"style=\"background-image:url('{safe}');\""
+        else:
+            # tenta converter caminho local para data URI
+            data_uri = _local_image_to_data_uri(preview_img)
+            if data_uri:
+                thumb_attr = f"style=\"background-image:url('{data_uri}');\""
+            else:
+                # se não encontrou, tenta usar o caminho tal qual (pode funcionar se servido estaticamente)
+                safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
+                thumb_attr = f"style=\"background-image:url('{safe}');\""
 
     href = f"?open={urllib.parse.quote(slug)}"
 
@@ -53,6 +84,4 @@ def render_catalog_card(slug: str,
     </div>
     """
     st.markdown(html, unsafe_allow_html=True)
-
-    # Retorna False para manter compatibilidade com o código que espera um booleano.
     return False
