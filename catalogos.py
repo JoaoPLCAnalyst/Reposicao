@@ -1,179 +1,242 @@
 import streamlit as st
-import urllib.parse
+import json
 import os
-from typing import List, Dict
+import urllib.parse
+
+from utils.images import img_to_base64
+from utils.clients import carregar_cliente
+from utils.importDatabase import carregar_database
+from components.header import render_header
+from components.wpp_button import render_wpp_button
+from components.peca import render_peca
+from components.catalog_card import render_catalog_card
+
+# -----------------------------------------------------------
+# CONFIG INICIAL
+# -----------------------------------------------------------
+st.set_page_config(page_title="WCE", layout="wide")
+
+logo_base64 = img_to_base64("imagens/Logo.png")
+render_header(logo_base64)
+
+ADMIN_PASSWORD = "SV2024"
+
+# -----------------------------------------------------------
+# PASTA DE CLIENTES (lista / arquivos individuais)
+# -----------------------------------------------------------
+CLIENTES_DIR = "clientes"
+os.makedirs(CLIENTES_DIR, exist_ok=True)
 
 # -------------------------
-# Render do card (HTML puro)
+# Helpers
 # -------------------------
-def render_catalog_card_html(slug: str, cliente_name: str, qtd_pecas: int,
-                             preview_img: str | None = None, preview_title: str = "") -> None:
-    """
-    Renderiza um card 100% em HTML (um único retângulo) com:
-    - nome, quantidade e botão (link) à esquerda
-    - imagem à direita
-    O link seta ?open=<slug> na URL para o app principal tratar.
-    """
-    if "_card_html_css" not in st.session_state:
-        st.markdown(
-            """
-            <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+def listar_clientes():
+    arquivos = [f for f in os.listdir(CLIENTES_DIR) if f.endswith(".json")]
+    clientes = []
+    for arq in arquivos:
+        caminho = os.path.join(CLIENTES_DIR, arq)
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            clientes.append({
+                "cliente": data.get("cliente", "Sem nome"),
+                "qtd_pecas": len(data.get("pecas", []))
+            })
+        except Exception as e:
+            st.error(f"Erro ao ler {arq}: {e}")
+    return clientes
 
-            .card-html {
-                display:flex;
-                align-items:center;
-                justify-content:space-between;
-                gap:16px;
-                background:#ffffff;
-                border-radius:12px;
-                padding:14px;
-                box-shadow:0 8px 24px rgba(8,54,92,0.06);
-                border:1px solid rgba(230,238,248,1);
-                box-sizing:border-box;
-                width:100%;
-                margin-bottom:12px;
-            }
-            .card-left { flex:1; min-width:0; }
-            .card-title {
-                font-weight:700;
-                color:#08365c;
-                margin:0 0 6px 0;
-                white-space:nowrap;
-                overflow:hidden;
-                text-overflow:ellipsis;
-                font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-                font-size:18px;
-            }
-            .card-meta {
-                color:#475569;
-                font-size:13px;
-                margin:0;
-                font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-            }
-            .card-sub {
-                color:#6b7280;
-                font-size:13px;
-                margin:6px 0 0 0;
-                font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-            }
-            .card-btn {
-                display:inline-block;
-                margin-top:10px;
-                padding:8px 14px;
-                background:#ffffff;
-                color:#08365c;
-                border-radius:8px;
-                border:1px solid rgba(8,54,92,0.06);
-                text-decoration:none;
-                font-weight:700;
-                font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-            }
-            .card-thumb {
-                width:180px;
-                height:110px;
-                border-radius:10px;
-                overflow:hidden;
-                background:#f1f5f9 center/cover no-repeat;
-                border:1px solid rgba(230,238,248,1);
-                flex-shrink:0;
-            }
-            @media (max-width:900px){
-                .card-thumb{ width:120px; height:80px; }
-                .card-title{ font-size:16px; }
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.session_state["_card_html_css"] = True
+def carregar_cliente_por_slug(slug: str):
+    slug = (slug or "").lower()
+    for arq in os.listdir(CLIENTES_DIR):
+        if not arq.endswith(".json"):
+            continue
+        caminho = os.path.join(CLIENTES_DIR, arq)
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            nome_slug = data.get("cliente", "").lower().replace(" ", "_")
+            if nome_slug == slug:
+                return data
+        except Exception:
+            continue
+    return None
 
-    thumb_attr = ""
-    if preview_img:
-        # Escapa a URL para uso em background-image
-        safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
-        thumb_attr = f"style=\"background-image:url('{safe}');\""
-
-    href = f"?open={urllib.parse.quote(slug)}"
-
-    html = f"""
-    <div class="card-html">
-      <div class="card-left">
-        <div class="card-title">{cliente_name}</div>
-        <div class="card-meta">Itens no catálogo: <strong>{qtd_pecas}</strong></div>
-        {"<div class='card-sub'>" + preview_title + "</div>" if preview_title else ""}
-        <div><a class="card-btn" href="{href}">Abrir Catálogo</a></div>
-      </div>
-      <div class="card-thumb" {thumb_attr}></div>
-    </div>
-    """
-    st.markdown(html, unsafe_allow_html=True)
-
-
-# --------------------------------
-# Função que abre o catálogo (stub)
-# --------------------------------
-def abrir_catalogo_por_slug(slug: str) -> None:
-    """
-    Substitua esta função pela lógica real de abertura de catálogo.
-    Aqui apenas definimos um estado e exibimos uma mensagem.
-    """
-    st.session_state["catalogo_aberto"] = slug
-    # Exemplo de ação: carregar dados do catálogo, navegar para outra página, etc.
-    st.write(f"Abrindo catálogo: {slug}")
-
+def abrir_catalogo_por_slug(slug: str):
+    slug = slug or ""
+    try:
+        st.experimental_set_query_params(cliente=slug)
+        try:
+            st.experimental_rerun()
+        except Exception:
+            st.rerun()
+        return
+    except Exception:
+        st.session_state["cliente_atual"] = slug
+        try:
+            st.rerun()
+        except Exception:
+            return
 
 # -------------------------
-# Exemplo de dados de teste
+# Inicializa session_state
 # -------------------------
-def get_catalogos_demo() -> List[Dict]:
-    """
-    Retorna uma lista de catálogos de exemplo.
-    Mantido apenas o catálogo real (WCE). Removidos os catálogos aleatórios.
-    """
-    return [
-        {"slug": "wce", "cliente": "WCE", "qtd_pecas": 1, "preview_img": "", "preview_title": "soft"},
-    ]
+if "cliente_atual" not in st.session_state:
+    st.session_state["cliente_atual"] = None
 
+# Sincroniza query param com session_state quando possível
+try:
+    params = st.experimental_get_query_params()
+    cliente_param = params.get("cliente", [None])[0]
+    if cliente_param:
+        st.session_state["cliente_atual"] = urllib.parse.unquote(cliente_param)
+except Exception:
+    try:
+        qp = getattr(st, "query_params", {})
+        val = qp.get("cliente", "")
+        if isinstance(val, list):
+            st.session_state["cliente_atual"] = val[0] if val else None
+        else:
+            st.session_state["cliente_atual"] = val or None
+    except Exception:
+        pass
 
-# -------------
-# App principal
-# -------------
-def main():
-    st.set_page_config(page_title="Catálogos", layout="wide")
-    st.title("Escolha um catálogo para visualizar os itens e fazer pedidos.")
+# -----------------------------------------------------------
+# Se cliente selecionado na sessão, delega para a página de catálogo
+# -----------------------------------------------------------
+if st.session_state["cliente_atual"]:
+    cliente_slug = st.session_state["cliente_atual"]
+    dados_cliente = carregar_cliente_por_slug(cliente_slug)
 
-    catalogos = get_catalogos_demo()
+    if dados_cliente is None:
+        st.warning("Cliente não encontrado. Verifique o nome ou volte à lista.")
+        if st.button("⬅️ Voltar para a lista"):
+            st.session_state["cliente_atual"] = None
+            try:
+                st.experimental_set_query_params()
+            except Exception:
+                try:
+                    if hasattr(st, "query_params"):
+                        st.query_params.clear()
+                except Exception:
+                    pass
+            try:
+                st.experimental_rerun()
+            except Exception:
+                st.rerun()
+        st.stop()
 
-    # Renderiza lista de catálogos (cada um como um retângulo HTML)
-    for c in catalogos:
-        render_catalog_card_html(
-            slug=c["slug"],
+    # Renderiza catálogo (comportamento original)
+    nome_cliente = dados_cliente.get("cliente", cliente_slug)
+    contato_vendedor = dados_cliente.get("contato", "")
+
+    pecas_raw = dados_cliente.get("pecas", [])
+    codigos_pecas = []
+    for item in pecas_raw:
+        if isinstance(item, dict):
+            if "codigo" in item:
+                codigos_pecas.append(item["codigo"])
+            else:
+                st.warning(f"Formato inesperado de peça no cliente '{nome_cliente}': {item}")
+        else:
+            codigos_pecas.append(item)
+
+    pecas_bd = carregar_database()
+    pecas = []
+    for codigo in codigos_pecas:
+        if codigo in pecas_bd:
+            item = pecas_bd[codigo].copy()
+            item["codigo"] = codigo
+            pecas.append(item)
+        else:
+            st.warning(f"⚠ Peça '{codigo}' não encontrada no database.")
+
+    # Cabeçalho do catálogo com botão Voltar
+    col1, col2 = st.columns([1, 8])
+    with col1:
+        if st.button("⬅️ Voltar"):
+            st.session_state["cliente_atual"] = None
+            try:
+                st.experimental_set_query_params()
+            except Exception:
+                try:
+                    if hasattr(st, "query_params"):
+                        st.query_params.clear()
+                except Exception:
+                    pass
+            try:
+                st.experimental_rerun()
+            except Exception:
+                st.rerun()
+    with col2:
+        st.header(f"Catalogo de Peças — {nome_cliente}")
+
+    st.subheader("Selecione as peças desejadas abaixo:")
+
+    pecas_selecionadas = []
+    quantidades = {}
+
+    st.subheader("📦 Lista de Peças Disponíveis")
+    for idx, peca in enumerate(pecas):
+        st.markdown("---")
+        render_peca(peca, idx, quantidades, pecas_selecionadas)
+        manual_url = peca.get("manual")
+        if manual_url:
+            safe_url = urllib.parse.quote(manual_url, safe=":/?&=#%")
+            st.markdown(f'<a href="{safe_url}" target="_blank" rel="noopener noreferrer" class="open-btn">📘 Abrir manual</a>', unsafe_allow_html=True)
+
+    if not pecas_selecionadas:
+        st.warning("Selecione pelo menos uma peça para continuar.")
+        st.stop()
+
+    texto_itens = "\n".join([f"- {p['nome']} (código {p['codigo']}) — Quantidade: {quantidades[p['codigo']]}" for p in pecas_selecionadas])
+    mensagem = f"Pedido de Aquisição de Peças\nCliente: {nome_cliente}\n\nItens Selecionados:\n{texto_itens}"
+    render_wpp_button(contato_vendedor, mensagem)
+
+    st.stop()
+
+# -----------------------------------------------------------
+# Lista de catálogos (nova UI em cards) usando componente separado
+# -----------------------------------------------------------
+st.title("Catálogos Disponíveis")
+st.write("Escolha um catálogo para visualizar os itens e fazer pedidos.")
+
+clientes = listar_clientes()
+if not clientes:
+    st.warning("Nenhum catálogo cadastrado ainda.")
+    st.stop()
+
+# Carrega database para prévisualizações
+pecas_bd = carregar_database()
+
+cols = st.columns(3, gap="large")
+for i, c in enumerate(clientes):
+    col = cols[i % 3]
+    slug = c["cliente"].lower().replace(" ", "_")
+    with col:
+        # resolve preview (primeira peça) a partir do cliente e database
+        cliente_data = carregar_cliente_por_slug(slug)
+        preview_img = None
+        preview_title = ""
+        if cliente_data:
+            pecas_list = cliente_data.get("pecas", [])
+            if pecas_list:
+                first = pecas_list[0]
+                codigo_first = first.get("codigo") if isinstance(first, dict) else first
+                detalhe = pecas_bd.get(codigo_first, {}) if pecas_bd else {}
+                preview_img = detalhe.get("imagem") or (first.get("imagem") if isinstance(first, dict) else None)
+                preview_title = detalhe.get("nome") or (first.get("nome") if isinstance(first, dict) else codigo_first)
+
+        clicked = render_catalog_card(
+            slug=slug,
             cliente_name=c["cliente"],
             qtd_pecas=c["qtd_pecas"],
-            preview_img=c.get("preview_img", ""),
-            preview_title=c.get("preview_title", ""),
+            preview_img=preview_img,
+            preview_title=preview_title,
+            key_suffix=str(i)
         )
-
-    # Após renderizar, checa query params para abrir catálogo quando link for clicado
-    params = st.experimental_get_query_params()
-    if "open" in params:
-        slug_to_open = params["open"][0]
-        # evita re-executar indefinidamente: limpa os params antes de executar ação
-        st.experimental_set_query_params()
-        # chama a função que abre o catálogo
-        abrir_catalogo_por_slug(slug_to_open)
-
-    # Exibe estado atual (opcional, útil para debug)
-    if "catalogo_aberto" in st.session_state:
-        st.info(f"Catálogo aberto: {st.session_state['catalogo_aberto']}")
-
-    # Botão para limpar estado (útil durante desenvolvimento)
-    if st.button("Limpar seleção"):
-        if "catalogo_aberto" in st.session_state:
-            del st.session_state["catalogo_aberto"]
-        st.experimental_rerun()
+        if clicked:
+            abrir_catalogo_por_slug(slug)
 
 
-if __name__ == "__main__":
-    main()
+st.markdown("---")
