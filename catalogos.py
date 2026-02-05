@@ -161,8 +161,6 @@ def abrir_catalogo_por_slug(slug: str):
 # -------------------------
 if "cliente_atual" not in st.session_state:
     st.session_state["cliente_atual"] = None
-if "preview_cliente" not in st.session_state:
-    st.session_state["preview_cliente"] = None
 
 # Sincroniza query param com session_state quando possível
 try:
@@ -306,70 +304,12 @@ for i, c in enumerate(clientes):
             unsafe_allow_html=True,
         )
 
-        # Botões: Pré-visualizar e Abrir Catálogo
-        btn_preview = st.button("Pré‑visualizar", key=f"preview_{slug}")
+        # Botão Abrir Catálogo
         btn_open = st.button("Abrir Catálogo", key=f"open_{slug}")
-
-        if btn_preview:
-            # apenas abre a pré‑visualização em session_state — não altera query nem força rerun
-            st.session_state["preview_cliente"] = slug
 
         if btn_open:
             abrir_catalogo_por_slug(slug)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-# -----------------------------------------------------------
-# Painel de pré-visualização (quando definido)
-# -----------------------------------------------------------
-if st.session_state.get("preview_cliente"):
-    preview_slug = st.session_state["preview_cliente"]
-    preview_data = carregar_cliente_por_slug(preview_slug)
-    if preview_data:
-        st.markdown("<div class='preview'>", unsafe_allow_html=True)
-        col_a, col_b = st.columns([3, 1])
-        with col_a:
-            st.markdown(f"### Pré‑visualização — {preview_data.get('cliente','—')}")
-            st.write(f"**Vendedor:** {preview_data.get('vendedor','—')}")
-            st.write(f"**Total de itens:** {len(preview_data.get('pecas', []))}")
-            st.markdown("---")
-
-            # mostra até 6 miniaturas com nome e código
-            pecas_preview = preview_data.get("pecas", [])[:6]
-            thumbs_cols = st.columns(len(pecas_preview) if pecas_preview else 1)
-            for idx, p in enumerate(pecas_preview):
-                pc = pecas_preview[idx]
-                # resolve dados da peça a partir do database se for código
-                if isinstance(pc, dict):
-                    codigo = pc.get("codigo") or pc.get("codigo", "")
-                else:
-                    codigo = pc
-                detalhe = pecas_bd.get(codigo, {}) if pecas_bd else {}
-                nome = detalhe.get("nome") or (pc.get("nome") if isinstance(pc, dict) else codigo)
-                imagem = detalhe.get("imagem") or (pc.get("imagem") if isinstance(pc, dict) else None)
-
-                with thumbs_cols[idx]:
-                    if imagem:
-                        try:
-                            st.image(imagem, width=120)
-                        except Exception:
-                            st.markdown(f"<div style='width:120px;height:90px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#6b7280;border:1px solid #e6eef8'>{codigo}</div>", unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"<div style='width:120px;height:90px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#6b7280;border:1px solid #e6eef8'>{codigo}</div>", unsafe_allow_html=True)
-                    st.markdown(f"<div class='thumb-title'>{nome}</div><div class='thumb-sub'>{codigo}</div>", unsafe_allow_html=True)
-
-        with col_b:
-            if st.button("Abrir Catálogo", key=f"preview_open_{preview_slug}"):
-                abrir_catalogo_por_slug(preview_slug)
-            if st.button("Fechar Pré‑visualização", key=f"preview_close_{preview_slug}"):
-                st.session_state["preview_cliente"] = None
-                try:
-                    st.experimental_set_query_params()
-                except Exception:
-                    pass
-                try:
-                    st.rerun()
-                except Exception:
-                    pass
-
-        st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("---")
