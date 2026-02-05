@@ -11,6 +11,7 @@ def _local_image_to_data_uri(path: str) -> Optional[str]:
     """Retorna data URI (base64) para a imagem local ou None se não existir/erro."""
     try:
         if not os.path.isabs(path):
+            # garante caminho relativo ao diretório do app
             path = os.path.join(os.getcwd(), path)
         if not os.path.exists(path):
             return None
@@ -36,74 +37,81 @@ def render_catalog_card(slug: str,
                         preview_title: str = "",
                         key_suffix: Optional[str] = None) -> bool:
     """
-    Renderiza um card full-bleed (vai da borda esquerda à direita da área de conteúdo).
-    Mantém a lógica de conversão local->data URI e suporte a URLs externas.
+    Renderiza o card alinhado horizontalmente com o cabeçalho (mesmo padding interno).
+    Mantém suporte a URLs externas e conversão local -> data URI.
     """
-    css_key = "_card_html_css_full_bleed"
+    css_key = "_card_html_css_aligned_with_header"
     if css_key not in st.session_state:
         st.markdown("""
         <style>
-        /* Full-bleed robusto: ocupa toda a largura da viewport */
+        /*
+         * Estratégia:
+         * - Não alteramos o cabeçalho.
+         * - Fazemos o wrapper do card sem padding externo.
+         * - Aplicamos padding interno igual ao header (15px) na coluna esquerda (.card-left)
+         *   para que o início/fim do conteúdo do card alinhem com o conteúdo do header.
+         */
+
         .card-html {
-        position: relative;
-        left: 50%;
-        right: 50%;
-        width: 100vw;                 /* ocupa toda a largura da viewport */
-        transform: translateX(-50%);  /* centraliza no viewport */
-        display:flex;
-        align-items:stretch;
-        gap:16px;
-        background:#ffffff;
-        border-radius:12px;
-        padding:14px;
-        box-shadow:0 8px 24px rgba(8,54,92,0.06);
-        border:1px solid rgba(230,238,248,1);
-        box-sizing:border-box;
-        max-width:none;
-        margin:12px 0;
-        overflow:hidden;
-        min-height:110px;
-        z-index:0;
+            display:flex;
+            align-items:stretch;
+            justify-content:space-between;
+            gap:16px;
+            background:#ffffff;
+            border-radius:12px;
+            padding:0;                      /* sem padding no wrapper para não deslocar bordas */
+            box-shadow:0 8px 24px rgba(8,54,92,0.06);
+            border:1px solid rgba(230,238,248,1);
+            box-sizing:border-box;
+            width:100%;
+            margin-bottom:12px;
+            overflow:hidden;
+            min-height:110px;
         }
 
-        /* Conteúdo interno com padding apenas na coluna esquerda */
+        /* padding interno igual ao header (15px) para alinhar início/fim do conteúdo */
         .card-left {
-        flex:1 1 auto;
-        min-width:0;
-        padding:0 16px;
-        display:flex;
-        flex-direction:column;
-        justify-content:center;
-        gap:6px;
+            flex:1 1 auto;
+            min-width:0;
+            padding:15px;                   /* <-- mesmo padding do header */
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            gap:6px;
         }
 
-        /* Thumb ocupa lateral direita, sem radius, encostando nas bordas externas; corte diagonal */
+        .card-title { font-weight:700; color:#08365c; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:Inter,system-ui,sans-serif; font-size:18px; }
+        .card-meta { color:#475569; font-size:13px; margin:0; font-family:Inter,system-ui,sans-serif; }
+        .card-sub { color:#6b7280; font-size:13px; margin:6px 0 0 0; font-family:Inter,system-ui,sans-serif; }
+        .card-btn { display:inline-block; margin-top:10px; padding:8px 14px; background:#ffffff; color:#08365c; border-radius:8px; border:1px solid rgba(8,54,92,0.06); text-decoration:none; font-weight:700; font-family:Inter,system-ui,sans-serif; }
+
+        /* thumb à direita; sem radius externo para não criar desalinhamento visual */
         .card-thumb {
-        flex: 0 0 40%;
-        height:100%;
-        border-radius:0;
-        overflow:hidden;
-        background:#f1f5f9 center/cover no-repeat;
-        border-left:none;
-        background-size:cover;
-        background-position:center;
-        clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
-        -webkit-clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
+            flex: 0 0 40%;
+            height:100%;
+            border-radius:0;
+            overflow:hidden;
+            background:#f1f5f9 center/cover no-repeat;
+            border-left:none;
+            display:block;
+            background-size:cover;
+            background-position:center;
+            /* corte diagonal opcional; mantenha ou remova conforme preferir */
+            clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
+            -webkit-clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
         }
 
-        /* Responsividade */
         @media (max-width:1200px){
-        .card-thumb { flex: 0 0 35%; }
-        .card-title{ font-size:16px; }
-        .card-html { min-height:100px; width:calc(100vw - 32px); left:50%; transform:translateX(-50%); }
+            .card-thumb { flex: 0 0 35%; }
+            .card-title{ font-size:16px; }
+            .card-html { min-height:90px; }
         }
         @media (max-width:700px){
-        .card-html { flex-direction:column; width:calc(100% - 32px); left:0; transform:none; margin-left:16px; margin-right:16px; border-radius:12px; }
-        .card-left { padding:12px; }
-        .card-thumb { width:100%; height:160px; clip-path:none; -webkit-clip-path:none; border-radius:0 0 12px 12px; }
+            .card-html { flex-direction:column; }
+            .card-left { padding:12px; } /* reduz um pouco em telas pequenas */
+            .card-thumb { width:100%; height:160px; clip-path:none; -webkit-clip-path:none; border-radius:0 0 12px 12px; }
         }
         </style>
-
         """, unsafe_allow_html=True)
         st.session_state[css_key] = True
 
@@ -115,7 +123,7 @@ def render_catalog_card(slug: str,
             safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
             thumb_attr = f"style=\"background-image:url('{safe}'); background-size:cover; background-position:center;\""
         else:
-            # tenta converter caminho local para data URI (resolve relativo ao cwd)
+            # tenta converter caminho local para data URI
             data_uri = _local_image_to_data_uri(preview_img)
             if data_uri:
                 thumb_attr = f"style=\"background-image:url('{data_uri}'); background-size:cover; background-position:center;\""
@@ -132,6 +140,7 @@ def render_catalog_card(slug: str,
     else:
         thumb_div = f'<div class="card-thumb" {thumb_attr}></div>'
 
+    # monta o HTML do card; wrapper sem padding, conteúdo interno (.card-left) tem padding igual ao header
     html = f"""
     <div class="card-html">
       <div class="card-left">
