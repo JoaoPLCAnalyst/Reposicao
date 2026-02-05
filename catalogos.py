@@ -227,7 +227,6 @@ for i, c in enumerate(clientes):
                 preview_img = detalhe.get("imagem") or (first.get("imagem") if isinstance(first, dict) else None)
                 preview_title = detalhe.get("nome") or (first.get("nome") if isinstance(first, dict) else codigo_first)
 
-        # usa o componente para renderizar o card; retorna True se o botão interno foi clicado
         clicked = render_catalog_card(
             slug=slug,
             cliente_name=c["cliente"],
@@ -238,5 +237,6 @@ for i, c in enumerate(clientes):
         )
         if clicked:
             abrir_catalogo_por_slug(slug)
+
 
 st.markdown("---")

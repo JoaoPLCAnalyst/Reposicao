@@ -1,24 +1,25 @@
+# components/catalog_card.py
 import streamlit as st
 import os
 import urllib.parse
 
-def render_catalog_card(slug: str,
-                        cliente_name: str,
-                        qtd_pecas: int,
-                        preview_img: str = None,
-                        preview_title: str = "",
-                        key_suffix: str = "") -> bool:
+def render_catalog_card(
+    slug: str,
+    cliente_name: str,
+    qtd_pecas: int,
+    preview_img: str = None,
+    preview_title: str = "",
+    key_suffix: str = ""
+) -> bool:
     """
-    Renderiza um retângulo (card) contendo:
-    - nome do catálogo (esquerda)
-    - quantidade de itens (esquerda)
-    - botão funcional do Streamlit (esquerda, branco)
-    - imagem (direita) dentro do mesmo retângulo
+    Renderiza um card retangular com:
+    - texto (nome, qtd, subtítulo, botão funcional) à esquerda
+    - imagem à direita (dentro do mesmo retângulo)
     Retorna True se o botão "Abrir Catálogo" for clicado.
     """
 
-    # Injeta CSS uma vez por sessão para garantir estilo consistente
-    css_flag = "_wce_card_css_v2"
+    # Injeta CSS apenas uma vez
+    css_flag = "_wce_card_css_vfinal"
     if css_flag not in st.session_state:
         st.markdown(
             """
@@ -36,11 +37,16 @@ def render_catalog_card(slug: str,
                 box-shadow: 0 8px 24px rgba(8,54,92,0.06);
                 border: 1px solid rgba(230,238,248,1);
                 overflow: hidden;
+                width:100%;
+                box-sizing:border-box;
             }
 
             .wce-left {
                 flex: 1 1 auto;
                 min-width: 0;
+                display:flex;
+                flex-direction:column;
+                gap:8px;
             }
 
             .wce-title {
@@ -48,7 +54,7 @@ def render_catalog_card(slug: str,
                 font-size: 18px;
                 font-weight: 700;
                 color: #08365c;
-                margin: 0 0 6px 0;
+                margin: 0;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
@@ -57,13 +63,13 @@ def render_catalog_card(slug: str,
             .wce-meta {
                 color: #475569;
                 font-size: 13px;
-                margin: 0 0 8px 0;
+                margin: 0;
             }
 
             .wce-sub {
                 color: #6b7280;
                 font-size: 13px;
-                margin: 0 0 10px 0;
+                margin: 0;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
@@ -71,6 +77,23 @@ def render_catalog_card(slug: str,
 
             .wce-actions {
                 margin-top: 6px;
+                display:flex;
+                gap:8px;
+                align-items:center;
+            }
+
+            /* botão visual (apenas visual) — ação real via st.button */
+            .wce-visual-btn {
+                display:inline-block;
+                padding:8px 14px;
+                border-radius:8px;
+                background:#ffffff;
+                color:#08365c;
+                font-weight:700;
+                font-size:13px;
+                border:1px solid rgba(8,54,92,0.06);
+                box-shadow: 0 4px 12px rgba(8,54,92,0.06);
+                text-decoration:none !important;
             }
 
             /* Caixa da imagem à direita (retângulo com border-radius) */
@@ -127,35 +150,37 @@ def render_catalog_card(slug: str,
                 else:
                     img_src = None
 
-    # Renderiza o card inteiro dentro de um único wrapper para garantir que tudo fique dentro do retângulo
+    # Renderiza o card inteiro dentro de um único wrapper
     with st.container():
+        # abre wrapper
         st.markdown('<div class="wce-card">', unsafe_allow_html=True)
 
-        # Lado esquerdo: título, meta, subtítulo e botão funcional
+        # lado esquerdo: texto e botão funcional
         st.markdown('<div class="wce-left">', unsafe_allow_html=True)
         st.markdown(f'<div class="wce-title">{cliente_name}</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="wce-meta">Itens no catálogo: <strong>{qtd_pecas}</strong></div>', unsafe_allow_html=True)
         if preview_title:
             st.markdown(f'<div class="wce-sub">{preview_title}</div>', unsafe_allow_html=True)
 
-        # Espaço para ações; botão funcional do Streamlit (branco)
+        # ações: botão funcional do Streamlit (branco)
         st.markdown('<div class="wce-actions">', unsafe_allow_html=True)
         btn_key = f"open_{slug}_{key_suffix}"
         clicked = st.button("Abrir Catálogo", key=btn_key)
+        # opcional: botão visual ao lado (não substitui ação)
+        st.markdown('<a class="wce-visual-btn" href="javascript:void(0)">Ver catálogo</a>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)  # fecha wce-actions
 
         st.markdown('</div>', unsafe_allow_html=True)  # fecha wce-left
 
-        # Lado direito: imagem dentro do mesmo retângulo
+        # lado direito: imagem dentro do mesmo retângulo
         if img_src:
-            # Para URLs externas, quote; para caminhos locais, usa caminho direto
+            # para URLs externas, quote; para caminhos locais, usa caminho direto
             if img_src.startswith("http://") or img_src.startswith("https://"):
                 safe_bg = urllib.parse.quote(img_src, safe=":/?&=#%")
                 thumb_html = f'<div class="wce-thumb" style="background-image: url(\'{safe_bg}\');"></div>'
                 st.markdown(thumb_html, unsafe_allow_html=True)
             else:
-                # caminho local: renderiza <div class="wce-thumb"><img src="..."></div>
-                # st.image às vezes quebra o wrapper visual, então usamos <img> dentro do div
+                # caminho local: renderiza <img> dentro do div para garantir carregamento
                 local_path = img_src.replace("'", "\\'")
                 thumb_html = f'<div class="wce-thumb"><img src="{local_path}" alt="thumb" /></div>'
                 st.markdown(thumb_html, unsafe_allow_html=True)
@@ -164,6 +189,7 @@ def render_catalog_card(slug: str,
             fallback_html = f'<div class="wce-thumb"><div class="wce-thumb-fallback">{initials}</div></div>'
             st.markdown(fallback_html, unsafe_allow_html=True)
 
-        st.markdown('</div>', unsafe_allow_html=True)  # fecha wce-card
+        # fecha wrapper
+        st.markdown('</div>', unsafe_allow_html=True)
 
     return clicked
