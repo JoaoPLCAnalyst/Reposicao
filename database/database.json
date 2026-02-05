@@ -60,5 +60,11 @@
     "nome": "joao",
     "descricao": "joao",
     "imagem": "imagens/joao.jpg"
+  },
+  {
+    "codigo": "cha",
+    "nome": "cha",
+    "descricao": "cha",
+    "imagem": "imagens/cha.jpg"
   }
 ]
