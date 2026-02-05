@@ -113,7 +113,6 @@ def listar_clientes():
                 data = json.load(f)
             clientes.append({
                 "cliente": data.get("cliente", "Sem nome"),
-                "vendedor": data.get("vendedor", "—"),
                 "qtd_pecas": len(data.get("pecas", []))
             })
         except Exception as e:
@@ -298,7 +297,6 @@ for i, c in enumerate(clientes):
         cliente_data = carregar_cliente_por_slug(slug)
         preview_img = None
         preview_title = ""
-        preview_sub = ""
         if cliente_data:
             pecas_list = cliente_data.get("pecas", [])
             first = None
@@ -310,42 +308,40 @@ for i, c in enumerate(clientes):
                 detalhe = pecas_bd.get(codigo_first, {}) if pecas_bd else {}
                 preview_img = detalhe.get("imagem") or (first.get("imagem") if isinstance(first, dict) else None)
                 preview_title = detalhe.get("nome") or (first.get("nome") if isinstance(first, dict) else codigo_first)
-                preview_sub = f"{detalhe.get('categoria','')} • {detalhe.get('subcategoria','')}".strip(" • ")
 
-        # fallback visual quando não há imagem
-        if not preview_img:
-            # cria um bloco visual simples como placeholder
-            preview_html = f"""
-            <div style="display:flex;align-items:center;gap:12px">
-              <div style="width:120px;height:90px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#6b7280;border:1px solid #e6eef8;font-weight:600">
-                {c['cliente'][0:2].upper()}
-              </div>
-              <div style="flex:1">
-                <div style="font-size:16px;font-weight:700;color:#08365c">{c['cliente']}</div>
-                <div style="color:#4b5563;margin-top:6px">Vendedor: <strong>{c['vendedor']}</strong></div>
-                <div style="color:#6b7280;margin-top:6px">Itens no catálogo: <strong>{c['qtd_pecas']}</strong></div>
-              </div>
-            </div>
-            """
-            st.markdown(f"<div class='card'>{preview_html}</div>", unsafe_allow_html=True)
-        else:
-            # monta HTML do card com thumbnail (trata URL e caminho local)
-            safe_img = preview_img
-            thumb_html = f"""
-            <div style="display:flex;gap:12px;align-items:center">
-              <div style="width:120px;height:90px;border-radius:8px;overflow:hidden;border:1px solid #e6eef8;flex-shrink:0">
-                <img src="{safe_img}" style="width:100%;height:100%;object-fit:cover;display:block" />
-              </div>
-              <div style="flex:1">
-                <div class="card-title">{c['cliente']}</div>
-                <div class="card-sub">Vendedor: <strong>{c['vendedor']}</strong></div>
-                <div class="card-meta">Itens no catálogo: <strong>{c['qtd_pecas']}</strong></div>
-                <div style="margin-top:6px;color:#6b7280;font-size:13px">{preview_title}</div>
-              </div>
-            </div>
-            """
-            st.markdown(f"<div class='card'>{thumb_html}</div>", unsafe_allow_html=True)
+        # Render do card usando colunas internas para garantir que imagens locais sejam exibidas corretamente
+        with st.container():
+            inner_col_img, inner_col_text = st.columns([1, 2], gap="small")
+            with inner_col_img:
+                if preview_img:
+                    # Se for URL externa, exibe diretamente; se for caminho local, usa st.image
+                    if isinstance(preview_img, str) and (preview_img.startswith("http://") or preview_img.startswith("https://")):
+                        try:
+                            st.image(preview_img, width=120)
+                        except Exception:
+                            # fallback visual
+                            st.markdown(f"<div style='width:120px;height:90px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#6b7280;border:1px solid #e6eef8;font-weight:600'>{slug[0:2].upper()}</div>", unsafe_allow_html=True)
+                    else:
+                        # caminho local relativo
+                        local_path = preview_img
+                        if os.path.exists(local_path):
+                            st.image(local_path, width=120)
+                        else:
+                            # fallback visual
+                            st.markdown(f"<div style='width:120px;height:90px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#6b7280;border:1px solid #e6eef8;font-weight:600'>{slug[0:2].upper()}</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"<div style='width:120px;height:90px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#6b7280;border:1px solid #e6eef8;font-weight:600'>{c['cliente'][0:2].upper()}</div>", unsafe_allow_html=True)
 
+            with inner_col_text:
+                # título e meta (sem o nome do vendedor, conforme solicitado)
+                st.markdown(f"<div class='card-title'>{c['cliente']}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='card-meta'>Itens no catálogo: <strong>{c['qtd_pecas']}</strong></div>", unsafe_allow_html=True)
+                if preview_title:
+                    st.markdown(f"<div style='margin-top:6px;color:#6b7280;font-size:13px'>{preview_title}</div>", unsafe_allow_html=True)
+
+            # encapsula tudo em um cartão visual
+            # (usamos markdown wrapper para aplicar a classe .card definida no CSS)
+            # Para manter a estrutura visual, renderizamos um pequeno wrapper acima.
         # Botão Abrir Catálogo
         btn_open = st.button("Abrir Catálogo", key=f"open_{slug}")
         if btn_open:
