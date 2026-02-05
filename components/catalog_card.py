@@ -48,7 +48,7 @@ def render_catalog_card(slug: str,
         .card-sub { color:#6b7280; font-size:13px; margin:6px 0 0 0; font-family:Inter,system-ui,sans-serif; }
         .card-btn { display:inline-block; margin-top:10px; padding:8px 14px; background:#ffffff; color:#08365c; border-radius:8px; border:1px solid rgba(8,54,92,0.06); text-decoration:none; font-weight:700; font-family:Inter,system-ui,sans-serif; }
         .card-thumb { width:180px; height:110px; border-radius:10px; overflow:hidden; background:#f1f5f9 center/cover no-repeat; border:1px solid rgba(230,238,248,1); flex-shrink:0; }
-        @media (max-width:900px){ .card-thumb{ width:120px; height:80px; } .card-title{ font-size:16px; } }
+        @media (max-width:1200px){ .card-thumb{ width:120px; height:80px; } .card-title{ font-size:16px; } }
         </style>
         """, unsafe_allow_html=True)
         st.session_state[css_key] = True
