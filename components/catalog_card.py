@@ -5,6 +5,8 @@ import os
 import base64
 from typing import Optional
 
+DEBUG_SHOW_PATH = False  # Ative para debug de caminhos (True/False)
+
 def _local_image_to_data_uri(path: str) -> Optional[str]:
     """Retorna data URI (base64) para a imagem local ou None se não existir/erro."""
     try:
@@ -13,9 +15,8 @@ def _local_image_to_data_uri(path: str) -> Optional[str]:
             path = os.path.join(os.getcwd(), path)
         if not os.path.exists(path):
             return None
-        mime = "image/png"
-        # tenta inferir pelo sufixo
         ext = os.path.splitext(path)[1].lower()
+        mime = "image/png"
         if ext in [".jpg", ".jpeg"]:
             mime = "image/jpeg"
         elif ext == ".gif":
@@ -35,20 +36,67 @@ def render_catalog_card(slug: str,
                         preview_img: Optional[str] = None,
                         preview_title: str = "",
                         key_suffix: Optional[str] = None) -> bool:
+    """
+    Renderiza o card mantendo a estrutura original.
+    A imagem ocupa toda a lateral direita, encosta nas bordas externas e tem corte diagonal.
+    Retorna False (a ação de abrir catálogo é tratada via query param no app).
+    """
     css_key = "_card_html_css"
     if css_key not in st.session_state:
         st.markdown("""
         <style>
-        .card-html { display:flex; align-items:center; justify-content:space-between; gap:16px;
-                     background:#ffffff; border-radius:12px; padding:14px; box-shadow:0 8px 24px rgba(8,54,92,0.06);
-                     border:1px solid rgba(230,238,248,1); box-sizing:border-box; width:100%; margin-bottom:12px; }
-        .card-left { flex:1; min-width:0; }
-        .card-title { font-weight:700; color:#08365c; margin:0 0 6px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:Inter,system-ui,sans-serif; font-size:18px; }
+        /* wrapper estica para que a thumb ocupe toda a lateral direita e encoste nas bordas */
+        .card-html {
+            display:flex;
+            align-items:stretch;            /* estica verticalmente */
+            justify-content:space-between;
+            gap:16px;
+            background:#ffffff;
+            border-radius:12px;
+            padding:0;                      /* padding do wrapper = 0 para a thumb encostar nas bordas */
+            box-shadow:0 8px 24px rgba(8,54,92,0.06);
+            border:1px solid rgba(230,238,248,1);
+            box-sizing:border-box;
+            width:100%;
+            margin-bottom:12px;
+            overflow:hidden;
+            min-height:110px;
+        }
+        .card-left {
+            flex:1 1 auto;
+            min-width:0;
+            padding:14px;                   /* padding aplicado apenas na coluna esquerda */
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            gap:6px;
+        }
+        .card-title { font-weight:700; color:#08365c; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:Inter,system-ui,sans-serif; font-size:18px; }
         .card-meta { color:#475569; font-size:13px; margin:0; font-family:Inter,system-ui,sans-serif; }
         .card-sub { color:#6b7280; font-size:13px; margin:6px 0 0 0; font-family:Inter,system-ui,sans-serif; }
         .card-btn { display:inline-block; margin-top:10px; padding:8px 14px; background:#ffffff; color:#08365c; border-radius:8px; border:1px solid rgba(8,54,92,0.06); text-decoration:none; font-weight:700; font-family:Inter,system-ui,sans-serif; }
-        .card-thumb { width:180px; height:110px; border-radius:10px; overflow:hidden; background:#f1f5f9 center/cover no-repeat; border:1px solid rgba(230,238,248,1); flex-shrink:0; }
-        @media (max-width:900px){ .card-thumb{ width:120px; height:80px; } .card-title{ font-size:16px; } }
+
+        /* miniatura ocupa toda a lateral direita; encosta nas bordas externas; corte diagonal */
+        .card-thumb {
+            flex: 0 0 40%;                 /* largura da miniatura — ajuste aqui se quiser maior/menor */
+            height:100%;
+            border-radius:0;               /* sem radius para encostar nas bordas externas */
+            overflow:hidden;
+            background:#f1f5f9 center/cover no-repeat;
+            border-left: none;             /* sem borda interna */
+            display:block;
+            background-size:cover;         /* garante que a imagem preencha */
+            background-position:center;
+            /* diagonal: corta a borda esquerda da miniatura em diagonal */
+            clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
+            -webkit-clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
+        }
+
+        @media (max-width:900px){
+            .card-thumb { flex: 0 0 35%; }
+            .card-title{ font-size:16px; }
+            .card-html { min-height:90px; }
+        }
         </style>
         """, unsafe_allow_html=True)
         st.session_state[css_key] = True
@@ -56,21 +104,27 @@ def render_catalog_card(slug: str,
     thumb_attr = ""
     if preview_img:
         preview_img = preview_img.strip()
-        # externa?
+        # URL externa
         if preview_img.startswith("http://") or preview_img.startswith("https://"):
             safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
-            thumb_attr = f"style=\"background-image:url('{safe}');\""
+            thumb_attr = f"style=\"background-image:url('{safe}'); background-size:cover; background-position:center;\""
         else:
             # tenta converter caminho local para data URI
             data_uri = _local_image_to_data_uri(preview_img)
             if data_uri:
-                thumb_attr = f"style=\"background-image:url('{data_uri}');\""
+                thumb_attr = f"style=\"background-image:url('{data_uri}'); background-size:cover; background-position:center;\""
             else:
                 # se não encontrou, tenta usar o caminho tal qual (pode funcionar se servido estaticamente)
                 safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
-                thumb_attr = f"style=\"background-image:url('{safe}');\""
+                thumb_attr = f"style=\"background-image:url('{safe}'); background-size:cover; background-position:center;\""
 
     href = f"?open={urllib.parse.quote(slug)}"
+
+    # Se não houver thumb_attr válido, mostra fallback visual
+    if not thumb_attr:
+        thumb_div = '<div class="card-thumb" style="background:#e6eef8; display:flex; align-items:center; justify-content:center; color:#6b7280; font-weight:700;">SEM IMAGEM</div>'
+    else:
+        thumb_div = f'<div class="card-thumb" {thumb_attr}></div>'
 
     html = f"""
     <div class="card-html">
@@ -80,8 +134,13 @@ def render_catalog_card(slug: str,
         {"<div class='card-sub'>" + preview_title + "</div>" if preview_title else ""}
         <div><a class="card-btn" href="{href}">Abrir Catálogo</a></div>
       </div>
-      <div class="card-thumb" {thumb_attr}></div>
+      {thumb_div}
     </div>
     """
     st.markdown(html, unsafe_allow_html=True)
+
+    if DEBUG_SHOW_PATH and preview_img:
+        exists = os.path.exists(preview_img) if os.path.isabs(preview_img) else os.path.exists(os.path.join(os.getcwd(), preview_img))
+        st.write(f"DEBUG preview_img: {preview_img} | exists: {exists}")
+
     return False
