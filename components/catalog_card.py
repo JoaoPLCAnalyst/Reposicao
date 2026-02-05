@@ -10,6 +10,8 @@ DEBUG_SHOW_PATH = False  # Ative para debug de caminhos (True/False)
 def _local_image_to_data_uri(path: str) -> Optional[str]:
     """Retorna data URI (base64) para a imagem local ou None se não existir/erro."""
     try:
+        if not path:
+            return None
         if not os.path.isabs(path):
             # garante caminho relativo ao diretório do app
             path = os.path.join(os.getcwd(), path)
@@ -119,6 +121,7 @@ def render_catalog_card(slug: str,
     thumb_attr = ""
     if preview_img:
         preview_img = preview_img.strip()
+        # URL externa
         if preview_img.startswith("http://") or preview_img.startswith("https://"):
             safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
             thumb_attr = f"style=\"background-image:url('{safe}'); background-size:cover; background-position:center;\""
