@@ -3,11 +3,13 @@ import os
 
 def render_catalog_card(
     slug: str,
-    titulo: str,
-    subtitulo: str,
+    cliente_name: str,
+    qtd_pecas: int,
     preview_img: str = None,
+    preview_title: str = "",
     key_suffix: str = ""
 ) -> bool:
+
 
     css_key = "_catalog_banner_css"
     if css_key not in st.session_state:
