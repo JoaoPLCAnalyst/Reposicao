@@ -1,16 +1,23 @@
 import streamlit as st
 import urllib.parse
+from typing import Optional
 
-def render_catalog_card(slug: str, cliente_name: str, qtd_pecas: int,
-                        preview_img: str = None, preview_title: str = "") -> None:
+def render_catalog_card(slug: str,
+                        cliente_name: str,
+                        qtd_pecas: int,
+                        preview_img: Optional[str] = None,
+                        preview_title: str = "",
+                        key_suffix: Optional[str] = None) -> bool:
     """
-    Renderiza um card 100% em HTML (um único retângulo) com:
+    Renderiza um card em HTML (um único retângulo) com:
     - nome, quantidade e botão (link) à esquerda
     - imagem à direita
-    O link seta ?open=<slug> na URL para o app principal tratar.
+
+    Compatível com chamadas que passam key_suffix. Retorna False para manter compatibilidade.
+    A ação de abrir catálogo é feita via query param ?open=slug (tratada no app principal).
     """
-    # injeta CSS uma vez
-    if "_card_html_css" not in st.session_state:
+    css_key = "_card_html_css"
+    if css_key not in st.session_state:
         st.markdown("""
         <style>
         .card-html { display:flex; align-items:center; justify-content:space-between; gap:16px;
@@ -25,9 +32,8 @@ def render_catalog_card(slug: str, cliente_name: str, qtd_pecas: int,
         @media (max-width:900px){ .card-thumb{ width:120px; height:80px; } .card-title{ font-size:16px; } }
         </style>
         """, unsafe_allow_html=True)
-        st.session_state["_card_html_css"] = True
+        st.session_state[css_key] = True
 
-    # prepara thumb style (escapa URL)
     thumb_attr = ""
     if preview_img:
         safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
@@ -47,3 +53,6 @@ def render_catalog_card(slug: str, cliente_name: str, qtd_pecas: int,
     </div>
     """
     st.markdown(html, unsafe_allow_html=True)
+
+    # Retorna False para manter compatibilidade com o código que espera um booleano.
+    return False
