@@ -38,31 +38,30 @@ def render_catalog_card(slug: str,
                         preview_title: str = "",
                         key_suffix: Optional[str] = None) -> bool:
     """
-    Renderiza o card alinhado horizontalmente com o cabeçalho usando uma estratégia
-    alternativa: colocamos o card dentro de um wrapper `.aligned-wrapper` que aplica
-    exatamente o mesmo padding horizontal do header (15px) sem alterar o header.
-    Isso evita hacks com vw/margens negativas e funciona mesmo quando o card está
-    dentro de colunas, desde que a coluna permita largura total.
+    Renderiza um card que tenta alinhar horizontalmente com o header sem alterar o header.
+    Estratégia:
+      - Não tocamos no header.
+      - Aplicamos ao card margin lateral igual ao padding do header (15px).
+      - Usamos width: calc(100% - 30px) para que o conteúdo interno ocupe exatamente
+        a área entre as margens (15px esquerda + 15px direita).
+      - Mantemos box-sizing:border-box para cálculos previsíveis.
+    Observação: se você estiver renderizando o card dentro de st.columns, a coluna
+    pode limitar a largura disponível; para alinhamento perfeito, renderize o card
+    no fluxo principal da página (fora de colunas) ou em uma coluna que ocupe toda a largura.
     """
-    css_key = "_card_html_css_aligned_wrapper"
+    css_key = "_card_html_css_margin_align"
     if css_key not in st.session_state:
         st.markdown("""
         <style>
         /*
-         * Estratégia alternativa:
-         * - .aligned-wrapper aplica padding horizontal igual ao header (15px).
-         * - .aligned-wrapper usa box-sizing:border-box para que width:100% respeite o padding.
-         * - .card-html ocupa 100% do wrapper, sem padding externo.
-         * - Em telas pequenas, o layout vira coluna e a thumb fica em cima.
+         * Ajuste do card para alinhar com header sem alterar o header:
+         * - margin: 0 15px -> cria as mesmas margens laterais visuais do header
+         * - width: calc(100% - 30px) -> conteúdo interno ocupa a área entre as margens
+         * - box-sizing: border-box -> padding/border incluídos no cálculo de largura
+         *
+         * Essa abordagem evita hacks com vw/margens negativas e funciona bem
+         * quando o card é renderizado no fluxo principal da página.
          */
-
-        .aligned-wrapper {
-            width:100%;
-            box-sizing:border-box;
-            padding: 0 15px;           /* mesmo padding horizontal do header */
-            margin: 0 auto;
-            display:block;
-        }
 
         .card-html {
             display:flex;
@@ -71,20 +70,25 @@ def render_catalog_card(slug: str,
             gap:16px;
             background:#ffffff;
             border-radius:12px;
-            padding:0;                 /* sem padding no wrapper do card */
+            padding:0; /* padding interno vertical será aplicado em .card-left */
             box-shadow:0 8px 24px rgba(8,54,92,0.06);
             border:1px solid rgba(230,238,248,1);
             box-sizing:border-box;
-            width:100%;                /* ocupa 100% do .aligned-wrapper */
+
+            /* alinhamento horizontal com o header (15px de cada lado) */
+            margin: 0 15px;
+            width: calc(100% - 30px);
+
             margin-bottom:12px;
             overflow:hidden;
             min-height:110px;
         }
 
+        /* conteúdo interno: aplicamos padding vertical; horizontal já vem das margens do wrapper */
         .card-left {
             flex:1 1 auto;
             min-width:0;
-            padding:15px 0 15px 0;     /* padding vertical; horizontal já vem do aligned-wrapper */
+            padding:15px 0; /* padding vertical; horizontal já é controlado pelo margin do wrapper */
             display:flex;
             flex-direction:column;
             justify-content:center;
@@ -97,27 +101,30 @@ def render_catalog_card(slug: str,
         .card-btn { display:inline-block; margin-top:10px; padding:8px 14px; background:#ffffff; color:#08365c; border-radius:8px; border:1px solid rgba(8,54,92,0.06); text-decoration:none; font-weight:700; font-family:Inter,system-ui,sans-serif; }
 
         .card-thumb {
-            flex: 0 0 36%;             /* largura relativa da miniatura; ajuste se necessário */
+            flex: 0 0 36%;
             height:100%;
             border-radius:0;
             overflow:hidden;
             background:#f1f5f9 center/cover no-repeat;
-            border-left:none;
-            display:block;
             background-size:cover;
             background-position:center;
             clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
             -webkit-clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
         }
 
+        /* Responsividade: em telas pequenas o card vira coluna e a thumb fica em cima */
         @media (max-width:1200px){
             .card-thumb { flex: 0 0 40%; }
             .card-title{ font-size:16px; }
-            .card-html { min-height:90px; }
+            .card-html { min-height:90px; width: calc(100% - 30px); }
         }
         @media (max-width:700px){
-            .aligned-wrapper { padding: 0 12px; } /* reduz padding em telas pequenas para encaixar */
-            .card-html { flex-direction:column; border-radius:12px; }
+            .card-html {
+                flex-direction:column;
+                width: calc(100% - 24px); /* reduz margem lateral em telas pequenas */
+                margin: 0 12px;
+                border-radius:12px;
+            }
             .card-left { padding:12px 0; }
             .card-thumb { width:100%; height:160px; clip-path:none; -webkit-clip-path:none; border-radius:0 0 12px 12px; flex:0 0 auto; }
         }
@@ -151,18 +158,16 @@ def render_catalog_card(slug: str,
     else:
         thumb_div = f'<div class="card-thumb" {thumb_attr}></div>'
 
-    # monta o HTML do card dentro do aligned-wrapper (mantemos o header inalterado)
+    # monta o HTML do card; não tocamos no header em nenhum momento
     html = f"""
-    <div class="aligned-wrapper">
-      <div class="card-html">
-        <div class="card-left">
-          <div class="card-title">{cliente_name}</div>
-          <div class="card-meta">Itens no catálogo: <strong>{qtd_pecas}</strong></div>
-          {"<div class='card-sub'>" + preview_title + "</div>" if preview_title else ""}
-          <div><a class="card-btn" href="{href}">Abrir Catálogo</a></div>
-        </div>
-        {thumb_div}
+    <div class="card-html">
+      <div class="card-left">
+        <div class="card-title">{cliente_name}</div>
+        <div class="card-meta">Itens no catálogo: <strong>{qtd_pecas}</strong></div>
+        {"<div class='card-sub'>" + preview_title + "</div>" if preview_title else ""}
+        <div><a class="card-btn" href="{href}">Abrir Catálogo</a></div>
       </div>
+      {thumb_div}
     </div>
     """
     st.markdown(html, unsafe_allow_html=True)
