@@ -54,5 +54,11 @@
     "descricao": "soft",
     "imagem": "imagens/soft starter 360.png",
     "manual": "https://raw.githubusercontent.com/JoaoPLCAnalyst/Reposicao/main/pdfs/soft starter 360.pdf"
+  },
+  {
+    "codigo": "joao",
+    "nome": "joao",
+    "descricao": "joao",
+    "imagem": "imagens/joao.jpg"
   }
 ]
