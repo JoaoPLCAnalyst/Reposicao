@@ -64,7 +64,7 @@ def render_catalog_card(slug: str,
 
         .card-page-container {
             width: 100%;            /* ocupa toda a largura disponível da coluna/pai */
-            max-width: 1200px;      /* largura máxima em telas grandes */
+            max-width: 4000px;      /* largura máxima em telas grandes */
             margin: 0 auto;         /* centraliza em telas largas */
             padding: 0 15px;        /* padding lateral igual ao header */
             box-sizing: border-box;
