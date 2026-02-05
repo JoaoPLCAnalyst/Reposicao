@@ -43,70 +43,67 @@ def render_catalog_card(slug: str,
     if css_key not in st.session_state:
         st.markdown("""
         <style>
-        /* Full-bleed card: compensa o padding do container do Streamlit para ocupar toda a largura */
+        /* Full-bleed robusto: ocupa toda a largura da viewport */
         .card-html {
-            display:flex;
-            align-items:stretch;
-            gap:16px;
-            background:#ffffff;
-            border-radius:12px;
-            padding:14px;
-            box-shadow:0 8px 24px rgba(8,54,92,0.06);
-            border:1px solid rgba(230,238,248,1);
-            box-sizing:border-box;
-            width:calc(100% + 48px);    /* ajuste para compensar padding do container */
-            max-width:none;
-            margin-left:-24px;          /* desloca para a esquerda */
-            margin-right:-24px;         /* desloca para a direita */
-            margin-bottom:16px;
-            overflow:hidden;
-            min-height:120px;
+        position: relative;
+        left: 50%;
+        right: 50%;
+        width: 100vw;                 /* ocupa toda a largura da viewport */
+        transform: translateX(-50%);  /* centraliza no viewport */
+        display:flex;
+        align-items:stretch;
+        gap:16px;
+        background:#ffffff;
+        border-radius:12px;
+        padding:14px;
+        box-shadow:0 8px 24px rgba(8,54,92,0.06);
+        border:1px solid rgba(230,238,248,1);
+        box-sizing:border-box;
+        max-width:none;
+        margin:12px 0;
+        overflow:hidden;
+        min-height:110px;
+        z-index:0;
         }
 
         /* Conteúdo interno com padding apenas na coluna esquerda */
         .card-left {
-            flex:1 1 auto;
-            min-width:0;
-            padding:0 16px 0 16px;
-            display:flex;
-            flex-direction:column;
-            justify-content:center;
-            gap:6px;
+        flex:1 1 auto;
+        min-width:0;
+        padding:0 16px;
+        display:flex;
+        flex-direction:column;
+        justify-content:center;
+        gap:6px;
         }
-
-        .card-title { font-weight:700; color:#08365c; margin:0 0 6px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:Inter,system-ui,sans-serif; font-size:18px; }
-        .card-meta { color:#475569; font-size:13px; margin:0; font-family:Inter,system-ui,sans-serif; }
-        .card-sub { color:#6b7280; font-size:13px; margin:6px 0 0 0; font-family:Inter,system-ui,sans-serif; }
-        .card-btn { display:inline-block; margin-top:10px; padding:8px 14px; background:#ffffff; color:#08365c; border-radius:8px; border:1px solid rgba(8,54,92,0.06); text-decoration:none; font-weight:700; font-family:Inter,system-ui,sans-serif; }
 
         /* Thumb ocupa lateral direita, sem radius, encostando nas bordas externas; corte diagonal */
         .card-thumb {
-            flex: 0 0 40%;                 /* largura relativa da miniatura */
-            height:100%;
-            border-radius:0;               /* sem radius para encostar nas bordas externas */
-            overflow:hidden;
-            background:#f1f5f9 center/cover no-repeat;
-            border-left:none;
-            display:block;
-            background-size:cover;
-            background-position:center;
-            /* corte diagonal na borda esquerda da thumb */
-            clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
-            -webkit-clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
+        flex: 0 0 40%;
+        height:100%;
+        border-radius:0;
+        overflow:hidden;
+        background:#f1f5f9 center/cover no-repeat;
+        border-left:none;
+        background-size:cover;
+        background-position:center;
+        clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
+        -webkit-clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
         }
 
-        /* Responsividade: reduz a largura da thumb em telas menores e ajusta compensação */
+        /* Responsividade */
         @media (max-width:1200px){
-            .card-thumb { flex: 0 0 35%; }
-            .card-title{ font-size:16px; }
-            .card-html { min-height:100px; width:calc(100% + 32px); margin-left:-16px; margin-right:-16px; }
+        .card-thumb { flex: 0 0 35%; }
+        .card-title{ font-size:16px; }
+        .card-html { min-height:100px; width:calc(100vw - 32px); left:50%; transform:translateX(-50%); }
         }
         @media (max-width:700px){
-            .card-html { flex-direction:column; width:100%; margin-left:0; margin-right:0; border-radius:12px; }
-            .card-left { padding:12px; }
-            .card-thumb { flex: 0 0 auto; width:100%; height:160px; clip-path:none; -webkit-clip-path:none; border-radius:0 0 12px 12px; }
+        .card-html { flex-direction:column; width:calc(100% - 32px); left:0; transform:none; margin-left:16px; margin-right:16px; border-radius:12px; }
+        .card-left { padding:12px; }
+        .card-thumb { width:100%; height:160px; clip-path:none; -webkit-clip-path:none; border-radius:0 0 12px 12px; }
         }
         </style>
+
         """, unsafe_allow_html=True)
         st.session_state[css_key] = True
 
