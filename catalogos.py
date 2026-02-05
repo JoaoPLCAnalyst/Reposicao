@@ -129,12 +129,10 @@ def abrir_catalogo_por_slug(slug: str) -> None:
 def get_catalogos_demo() -> List[Dict]:
     """
     Retorna uma lista de catálogos de exemplo.
-    Substitua por sua fonte real (API, DB, arquivo).
+    Mantido apenas o catálogo real (WCE). Removidos os catálogos aleatórios.
     """
     return [
         {"slug": "wce", "cliente": "WCE", "qtd_pecas": 1, "preview_img": "", "preview_title": "soft"},
-        {"slug": "alpha", "cliente": "Alpha Co", "qtd_pecas": 12, "preview_img": "https://picsum.photos/320/200?random=1", "preview_title": "Coleção A"},
-        {"slug": "bravo", "cliente": "Bravo Ltda", "qtd_pecas": 5, "preview_img": "https://picsum.photos/320/200?random=2", "preview_title": "Novidades"},
     ]
 
 
