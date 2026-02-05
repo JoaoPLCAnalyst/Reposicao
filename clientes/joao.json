@@ -1,0 +1,13 @@
+{
+  "cliente": "joao",
+  "vendedor": "joao",
+  "contato": "+5515997266165",
+  "pecas": [
+    {
+      "codigo": "joao",
+      "nome": "joao",
+      "descricao": "joao",
+      "imagem": "imagens/joao.jpg"
+    }
+  ]
+}
