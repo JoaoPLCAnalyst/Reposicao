@@ -38,28 +38,35 @@ def render_catalog_card(slug: str,
                         preview_title: str = "",
                         key_suffix: Optional[str] = None) -> bool:
     """
-    Renderiza o card dentro de um elemento pai com largura EXATA (width),
-    sem alterar o header. Use este componente quando quiser que o pai do
-    card tenha largura fixa e conhecida (por exemplo 1200px).
+    Renderiza o card alinhado tanto em desktop quanto em mobile.
+    Estratégia:
+      - Não altera o header.
+      - Envolve o card em um container responsivo com largura EXATA quando possível,
+        mas que encolhe em telas pequenas (width:100% + max-width).
+      - Usa padding lateral consistente (15px) para alinhar início/fim com o header.
+      - Evita width fixa absoluta que quebre o layout em celulares.
     """
-    css_key = "_card_html_css_explicit_width_parent"
+    css_key = "_card_html_css_responsive_parent"
     if css_key not in st.session_state:
         st.markdown("""
         <style>
         /*
-         * ELEMENTO PAI EXPLÍCITO COM LARGURA EXATA
-         * - .page-container agora usa width (valor exato) em vez de max-width.
-         * - padding lateral mantém o alinhamento visual com o header (15px).
-         * - .card-html ocupa 100% da área interna do .page-container.
+         * Container pai responsivo (aplica-se apenas ao card, não altera header)
+         * - width:100% garante que o container nunca ultrapasse a viewport em mobile
+         * - max-width define a largura máxima em telas grandes (ajuste 1200px se desejar)
+         * - padding lateral 15px mantém alinhamento visual com header
+         * - box-sizing:border-box para cálculos previsíveis
          *
-         * Observação: se o header estiver fora deste container, mantenha o header
-         * com o mesmo padding lateral (15px) para alinhamento visual.
+         * Resultado: no desktop o conteúdo fica centralizado até max-width; no mobile
+         * o container encolhe e mantém 15px de padding nas laterais, garantindo
+         * alinhamento esquerdo/direito igual ao header.
          */
 
-        .page-container {
-            width: 1200px;        /* largura EXATA do elemento pai (substitua se desejar outro valor) */
-            margin: 0 auto;       /* centraliza o container na viewport */
-            padding: 0 15px;      /* padding lateral explícito (alinha com header) */
+        .card-page-container {
+            width: 100%;            /* ocupa toda a largura disponível da coluna/pai */
+            max-width: 1200px;      /* largura máxima em telas grandes */
+            margin: 0 auto;         /* centraliza em telas largas */
+            padding: 0 15px;        /* padding lateral igual ao header */
             box-sizing: border-box;
         }
 
@@ -70,21 +77,21 @@ def render_catalog_card(slug: str,
             gap:16px;
             background:#ffffff;
             border-radius:12px;
-            padding:0;                 /* sem padding no wrapper do card */
+            padding:0;                 /* padding interno vertical em .card-left */
             box-shadow:0 8px 24px rgba(8,54,92,0.06);
             border:1px solid rgba(230,238,248,1);
             box-sizing:border-box;
-            width:100%;                /* ocupa 100% da área interna do .page-container */
+            width:100%;                /* ocupa 100% da área interna do .card-page-container */
             margin-bottom:12px;
             overflow:hidden;
             min-height:110px;
         }
 
-        /* conteúdo interno: padding vertical; horizontal já vem do .page-container */
+        /* conteúdo interno: padding vertical; horizontal já vem do .card-page-container */
         .card-left {
             flex:1 1 auto;
             min-width:0;
-            padding:15px 0;            /* padding vertical; horizontal já aplicado no pai */
+            padding:15px 0;            /* padding vertical; horizontal controlado pelo container */
             display:flex;
             flex-direction:column;
             justify-content:center;
@@ -108,17 +115,16 @@ def render_catalog_card(slug: str,
             -webkit-clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
         }
 
-        /* Responsividade: quando a viewport for menor que a largura fixa, o container fica scrollable */
+        /* Responsividade: mantém alinhamento lateral idêntico no mobile */
         @media (max-width:1200px){
-            /* se a tela for menor que 1200px, permitimos que o .page-container seja responsivo */
-            .page-container { width: calc(100% - 32px); padding: 0 16px; } /* fallback para telas menores */
             .card-thumb { flex: 0 0 40%; }
             .card-title{ font-size:16px; }
             .card-html { min-height:90px; }
         }
 
         @media (max-width:700px){
-            .page-container { width: calc(100% - 24px); padding: 0 12px; }
+            /* Em telas pequenas, o container encolhe (width:100% do pai) e mantém padding lateral */
+            .card-page-container { padding: 0 12px; } /* reduz levemente o padding em mobile se desejar */
             .card-html { flex-direction:column; border-radius:12px; }
             .card-left { padding:12px 0; }
             .card-thumb { width:100%; height:160px; clip-path:none; -webkit-clip-path:none; border-radius:0 0 12px 12px; flex:0 0 auto; }
@@ -153,9 +159,9 @@ def render_catalog_card(slug: str,
     else:
         thumb_div = f'<div class="card-thumb" {thumb_attr}></div>'
 
-    # Renderiza o card DENTRO do elemento pai explícito .page-container (width exato)
+    # Renderiza o card DENTRO do container responsivo .card-page-container
     html = f"""
-    <div class="page-container">
+    <div class="card-page-container">
       <div class="card-html">
         <div class="card-left">
           <div class="card-title">{cliente_name}</div>
