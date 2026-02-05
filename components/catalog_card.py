@@ -1,8 +1,8 @@
 import streamlit as st
 import urllib.parse
 
-def render_catalog_card_html(slug: str, cliente_name: str, qtd_pecas: int,
-                             preview_img: str = None, preview_title: str = "") -> None:
+def render_catalog_card(slug: str, cliente_name: str, qtd_pecas: int,
+                        preview_img: str = None, preview_title: str = "") -> None:
     """
     Renderiza um card 100% em HTML (um único retângulo) com:
     - nome, quantidade e botão (link) à esquerda
