@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 
-def render_catalog_banner(
+def render_catalog_card(
     slug: str,
     titulo: str,
     subtitulo: str,
