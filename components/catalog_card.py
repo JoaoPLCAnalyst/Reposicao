@@ -38,22 +38,31 @@ def render_catalog_card(slug: str,
                         preview_title: str = "",
                         key_suffix: Optional[str] = None) -> bool:
     """
-    Renderiza o card dentro de um elemento pai explicitamente definido (.page-container).
-    Não altera o header; define o pai apenas para o card aqui.
+    Renderiza o card dentro de um elemento pai com largura EXATA (width),
+    sem alterar o header. Use este componente quando quiser que o pai do
+    card tenha largura fixa e conhecida (por exemplo 1200px).
     """
-    css_key = "_card_html_css_explicit_parent"
+    css_key = "_card_html_css_explicit_width_parent"
     if css_key not in st.session_state:
         st.markdown("""
         <style>
-        /* ELEMENTO PAI EXPLÍCITO: controla largura e padding do pai do card */
+        /*
+         * ELEMENTO PAI EXPLÍCITO COM LARGURA EXATA
+         * - .page-container agora usa width (valor exato) em vez de max-width.
+         * - padding lateral mantém o alinhamento visual com o header (15px).
+         * - .card-html ocupa 100% da área interna do .page-container.
+         *
+         * Observação: se o header estiver fora deste container, mantenha o header
+         * com o mesmo padding lateral (15px) para alinhamento visual.
+         */
+
         .page-container {
-            width: 30000px;    /* <-- largura explícita do elemento pai */
+            width: 1200px;        /* largura EXATA do elemento pai (substitua se desejar outro valor) */
             margin: 0 auto;       /* centraliza o container na viewport */
-            padding: 0 15px;      /* <-- padding lateral explícito (alinha com header) */
+            padding: 0 15px;      /* padding lateral explícito (alinha com header) */
             box-sizing: border-box;
         }
 
-        /* Card ocupa 100% da área interna do .page-container */
         .card-html {
             display:flex;
             align-items:stretch;
@@ -99,14 +108,17 @@ def render_catalog_card(slug: str,
             -webkit-clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
         }
 
-        /* Responsividade */
+        /* Responsividade: quando a viewport for menor que a largura fixa, o container fica scrollable */
         @media (max-width:1200px){
+            /* se a tela for menor que 1200px, permitimos que o .page-container seja responsivo */
+            .page-container { width: calc(100% - 32px); padding: 0 16px; } /* fallback para telas menores */
             .card-thumb { flex: 0 0 40%; }
             .card-title{ font-size:16px; }
             .card-html { min-height:90px; }
         }
+
         @media (max-width:700px){
-            .page-container { padding: 0 12px; } /* reduz padding em telas pequenas */
+            .page-container { width: calc(100% - 24px); padding: 0 12px; }
             .card-html { flex-direction:column; border-radius:12px; }
             .card-left { padding:12px 0; }
             .card-thumb { width:100%; height:160px; clip-path:none; -webkit-clip-path:none; border-radius:0 0 12px 12px; flex:0 0 auto; }
@@ -115,29 +127,33 @@ def render_catalog_card(slug: str,
         """, unsafe_allow_html=True)
         st.session_state[css_key] = True
 
-    # prepara atributo de estilo da thumb
+    # prepara atributo de estilo da thumb com background-size e position
     thumb_attr = ""
     if preview_img:
         preview_img = preview_img.strip()
+        # URL externa
         if preview_img.startswith("http://") or preview_img.startswith("https://"):
             safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
             thumb_attr = f"style=\"background-image:url('{safe}'); background-size:cover; background-position:center;\""
         else:
+            # tenta converter caminho local para data URI
             data_uri = _local_image_to_data_uri(preview_img)
             if data_uri:
                 thumb_attr = f"style=\"background-image:url('{data_uri}'); background-size:cover; background-position:center;\""
             else:
+                # fallback: tenta usar o caminho tal qual (útil se a pasta for servida estaticamente)
                 safe = urllib.parse.quote(preview_img, safe=":/?&=#%")
                 thumb_attr = f"style=\"background-image:url('{safe}'); background-size:cover; background-position:center;\""
 
     href = f"?open={urllib.parse.quote(slug)}"
 
+    # fallback visual quando não há imagem válida
     if not thumb_attr:
         thumb_div = '<div class="card-thumb" style="background:#e6eef8; display:flex; align-items:center; justify-content:center; color:#6b7280; font-weight:700;">SEM IMAGEM</div>'
     else:
         thumb_div = f'<div class="card-thumb" {thumb_attr}></div>'
 
-    # Renderiza o card DENTRO do elemento pai explícito .page-container
+    # Renderiza o card DENTRO do elemento pai explícito .page-container (width exato)
     html = f"""
     <div class="page-container">
       <div class="card-html">
@@ -153,6 +169,7 @@ def render_catalog_card(slug: str,
     """
     st.markdown(html, unsafe_allow_html=True)
 
+    # debug opcional: mostra se o arquivo existe no caminho resolvido
     if DEBUG_SHOW_PATH and preview_img:
         abs_path = preview_img if os.path.isabs(preview_img) else os.path.join(os.getcwd(), preview_img)
         exists = os.path.exists(abs_path)
