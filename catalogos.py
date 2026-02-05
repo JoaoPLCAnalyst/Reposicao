@@ -21,73 +21,132 @@ render_header(logo_base64)
 ADMIN_PASSWORD = "SV2024"
 
 # -----------------------------------------------------------
-# ESTILO (cards, botões, miniaturas e animações suaves)
+# ESTILO (cards, botões, tipografia e miniaturas)
 # -----------------------------------------------------------
 st.markdown(
     """
     <style>
-    /* animações */
-    @keyframes fadeUp {
-        0% { opacity: 0; transform: translateY(8px); }
-        100% { opacity: 1; transform: translateY(0); }
+    /* Importa fonte moderna (fallbacks incluídos) */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+    :root{
+      --card-bg: linear-gradient(180deg,#ffffff 0%,#f7fbff 100%);
+      --accent: #0b5fff; /* cor do botão */
+      --muted: #6b7280;
+      --title: #08365c;
+      --radius: 12px;
+      --shadow: 0 8px 24px rgba(8,54,92,0.06);
     }
-    @keyframes glow {
-        0% { box-shadow: 0 6px 18px rgba(8, 54, 92, 0.04); }
-        50% { box-shadow: 0 10px 28px rgba(8, 54, 92, 0.08); }
-        100% { box-shadow: 0 6px 18px rgba(8, 54, 92, 0.04); }
+
+    body, .stApp {
+      font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
     }
 
     .card {
-        background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
-        border-radius: 12px;
-        padding: 18px;
-        box-shadow: 0 6px 18px rgba(8, 54, 92, 0.08);
-        transition: transform .18s cubic-bezier(.2,.9,.3,1), box-shadow .18s;
-        height: 100%;
-        animation: fadeUp .28s ease both;
+        display:flex;
+        gap:16px;
+        align-items:center;
+        background: var(--card-bg);
+        border-radius: var(--radius);
+        padding: 14px;
+        box-shadow: var(--shadow);
+        transition: transform .18s ease, box-shadow .18s ease;
+        overflow: hidden;
+        min-height: 110px;
     }
-    .card:hover { transform: translateY(-6px) scale(1.01); animation: glow 2.2s infinite ease-in-out; }
-    .card-title { font-size: 18px; font-weight:700; color:#08365c; margin-bottom:6px; }
-    .card-sub { color:#4b5563; margin-bottom:10px; }
-    .card-meta { color:#6b7280; font-size:13px; margin-bottom:12px; }
+    .card:hover { transform: translateY(-6px); box-shadow: 0 14px 40px rgba(8,54,92,0.10); }
+
+    /* imagem à esquerda com corte preciso */
+    .card-thumb {
+        width: 160px;
+        height: 100px;
+        flex-shrink: 0;
+        border-radius: 10px;
+        overflow: hidden;
+        background: linear-gradient(180deg,#eef6ff,#ffffff);
+        border: 1px solid #e6eef8;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+    }
+    .card-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover; /* garante corte centralizado */
+        display:block;
+    }
+
+    .card-body {
+        flex:1;
+        display:flex;
+        flex-direction:column;
+        justify-content:center;
+        min-width:0;
+    }
+    .card-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--title);
+        line-height:1.05;
+        margin-bottom:6px;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    }
+    .card-sub {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom:8px;
+        display:block;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    }
+    .card-meta {
+        color: #475569;
+        font-size: 13px;
+        margin-bottom:8px;
+    }
+
+    .card-actions {
+        display:flex;
+        gap:8px;
+        align-items:center;
+        margin-top:6px;
+    }
 
     .open-btn {
         display:inline-block;
         text-decoration:none !important;
         padding:10px 16px;
         border-radius:10px;
-        background:#08365c;
+        background: var(--accent);
         color:white !important;
         font-weight:700;
-        box-shadow: 0 4px 12px rgba(8,54,92,0.12);
+        font-size:14px;
+        border: 0;
+        box-shadow: 0 6px 18px rgba(11,95,255,0.14);
         transition: transform .12s, box-shadow .12s;
     }
-    .open-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(8,54,92,0.16); }
+    .open-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(11,95,255,0.18); }
 
-    .preview {
-        border-radius:12px;
-        padding:14px;
-        background:linear-gradient(180deg,#ffffff,#fbfdff);
-        box-shadow: 0 8px 24px rgba(8,54,92,0.06);
-        margin-top:18px;
-        animation: fadeUp .28s ease both;
-    }
-    .thumb {
-        width:120px;
-        height:90px;
-        object-fit:cover;
+    /* badge opcional (ex: NOVO) */
+    .badge {
+        display:inline-block;
+        background:#ff6b00;
+        color:white;
+        padding:6px 8px;
         border-radius:8px;
-        border:1px solid #e6eef8;
-        transition: transform .12s ease, box-shadow .12s;
+        font-weight:700;
+        font-size:12px;
+        margin-left:6px;
     }
-    .thumb:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(8,54,92,0.08); }
-    .thumb-title { font-size:13px; font-weight:600; color:#08365c; margin-top:6px; }
-    .thumb-sub { font-size:12px; color:#6b7280; }
-    .grid { gap: 18px; }
 
-    /* responsividade simples */
+    /* responsividade */
     @media (max-width: 900px) {
-        .thumb { width:100px; height:72px; }
+        .card { flex-direction:row; gap:12px; padding:12px; }
+        .card-thumb { width:120px; height:80px; }
+        .card-title { font-size:16px; }
     }
     </style>
     """,
@@ -136,10 +195,6 @@ def carregar_cliente_por_slug(slug: str):
     return None
 
 def abrir_catalogo_por_slug(slug: str):
-    """
-    Tenta abrir o catálogo definindo query param; se não for possível,
-    usa session_state como fallback e força rerun.
-    """
     slug = slug or ""
     try:
         st.experimental_set_query_params(cliente=slug)
@@ -180,7 +235,6 @@ except Exception:
 
 # -----------------------------------------------------------
 # Se cliente selecionado na sessão, delega para a página de catálogo
-# (mantém comportamento original de exibição do catálogo)
 # -----------------------------------------------------------
 if st.session_state["cliente_atual"]:
     cliente_slug = st.session_state["cliente_atual"]
@@ -204,7 +258,7 @@ if st.session_state["cliente_atual"]:
                 st.rerun()
         st.stop()
 
-    # Renderiza catálogo (mesmo comportamento que você já tinha)
+    # Renderiza catálogo (comportamento original)
     nome_cliente = dados_cliente.get("cliente", cliente_slug)
     contato_vendedor = dados_cliente.get("contato", "")
 
@@ -309,40 +363,45 @@ for i, c in enumerate(clientes):
                 preview_img = detalhe.get("imagem") or (first.get("imagem") if isinstance(first, dict) else None)
                 preview_title = detalhe.get("nome") or (first.get("nome") if isinstance(first, dict) else codigo_first)
 
-        # Render do card usando colunas internas para garantir que imagens locais sejam exibidas corretamente
-        with st.container():
-            inner_col_img, inner_col_text = st.columns([1, 2], gap="small")
-            with inner_col_img:
-                if preview_img:
-                    # Se for URL externa, exibe diretamente; se for caminho local, usa st.image
-                    if isinstance(preview_img, str) and (preview_img.startswith("http://") or preview_img.startswith("https://")):
-                        try:
-                            st.image(preview_img, width=120)
-                        except Exception:
-                            # fallback visual
-                            st.markdown(f"<div style='width:120px;height:90px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#6b7280;border:1px solid #e6eef8;font-weight:600'>{slug[0:2].upper()}</div>", unsafe_allow_html=True)
-                    else:
-                        # caminho local relativo
-                        local_path = preview_img
-                        if os.path.exists(local_path):
-                            st.image(local_path, width=120)
-                        else:
-                            # fallback visual
-                            st.markdown(f"<div style='width:120px;height:90px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#6b7280;border:1px solid #e6eef8;font-weight:600'>{slug[0:2].upper()}</div>", unsafe_allow_html=True)
-                else:
-                    st.markdown(f"<div style='width:120px;height:90px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#6b7280;border:1px solid #e6eef8;font-weight:600'>{c['cliente'][0:2].upper()}</div>", unsafe_allow_html=True)
+        # Render do card com layout controlado por CSS acima
+        # Construímos HTML manual para garantir posicionamento e corte da imagem
+        if preview_img and isinstance(preview_img, str):
+            # se for caminho local, converte para caminho relativo; st aceita ambos
+            img_src = preview_img
+            # monta HTML do card
+            card_html = f"""
+            <div class="card">
+              <div class="card-thumb">
+                <img src="{img_src}" alt="thumb" />
+              </div>
+              <div class="card-body">
+                <div class="card-title">{c['cliente']}</div>
+                <div class="card-meta">Itens no catálogo: <strong>{c['qtd_pecas']}</strong></div>
+                <div class="card-sub">{preview_title}</div>
+                <div class="card-actions">
+                  <a class="open-btn" href="javascript:void(0)" id="open_{slug}">Abrir Catálogo</a>
+                </div>
+              </div>
+            </div>
+            """
+        else:
+            # fallback sem imagem
+            initials = (c['cliente'][:2] or "CL").upper()
+            card_html = f"""
+            <div class="card">
+              <div class="card-thumb">
+                <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#6b7280;font-weight:700">{initials}</div>
+              </div>
+              <div class="card-body">
+                <div class="card-title">{c['cliente']}</div>
+                <div class="card-meta">Itens no catálogo: <strong>{c['qtd_pecas']}</strong></div>
+              </div>
+            </div>
+            """
 
-            with inner_col_text:
-                # título e meta (sem o nome do vendedor, conforme solicitado)
-                st.markdown(f"<div class='card-title'>{c['cliente']}</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='card-meta'>Itens no catálogo: <strong>{c['qtd_pecas']}</strong></div>", unsafe_allow_html=True)
-                if preview_title:
-                    st.markdown(f"<div style='margin-top:6px;color:#6b7280;font-size:13px'>{preview_title}</div>", unsafe_allow_html=True)
+        st.markdown(card_html, unsafe_allow_html=True)
 
-            # encapsula tudo em um cartão visual
-            # (usamos markdown wrapper para aplicar a classe .card definida no CSS)
-            # Para manter a estrutura visual, renderizamos um pequeno wrapper acima.
-        # Botão Abrir Catálogo
+        # Botão funcional: usamos st.button abaixo para manter comportamento do Streamlit
         btn_open = st.button("Abrir Catálogo", key=f"open_{slug}")
         if btn_open:
             abrir_catalogo_por_slug(slug)
