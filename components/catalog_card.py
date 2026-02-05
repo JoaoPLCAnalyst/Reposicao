@@ -13,7 +13,6 @@ def _local_image_to_data_uri(path: str) -> Optional[str]:
         if not path:
             return None
         if not os.path.isabs(path):
-            # garante caminho relativo ao diretório do app
             path = os.path.join(os.getcwd(), path)
         if not os.path.exists(path):
             return None
@@ -39,20 +38,31 @@ def render_catalog_card(slug: str,
                         preview_title: str = "",
                         key_suffix: Optional[str] = None) -> bool:
     """
-    Renderiza o card alinhado horizontalmente com o cabeçalho (mesmo padding interno).
-    Mantém suporte a URLs externas e conversão local -> data URI.
+    Renderiza o card alinhado horizontalmente com o cabeçalho usando uma estratégia
+    alternativa: colocamos o card dentro de um wrapper `.aligned-wrapper` que aplica
+    exatamente o mesmo padding horizontal do header (15px) sem alterar o header.
+    Isso evita hacks com vw/margens negativas e funciona mesmo quando o card está
+    dentro de colunas, desde que a coluna permita largura total.
     """
-    css_key = "_card_html_css_aligned_with_header"
+    css_key = "_card_html_css_aligned_wrapper"
     if css_key not in st.session_state:
         st.markdown("""
         <style>
         /*
-         * Estratégia:
-         * - Não alteramos o cabeçalho.
-         * - Fazemos o wrapper do card sem padding externo.
-         * - Aplicamos padding interno igual ao header (15px) na coluna esquerda (.card-left)
-         *   para que o início/fim do conteúdo do card alinhem com o conteúdo do header.
+         * Estratégia alternativa:
+         * - .aligned-wrapper aplica padding horizontal igual ao header (15px).
+         * - .aligned-wrapper usa box-sizing:border-box para que width:100% respeite o padding.
+         * - .card-html ocupa 100% do wrapper, sem padding externo.
+         * - Em telas pequenas, o layout vira coluna e a thumb fica em cima.
          */
+
+        .aligned-wrapper {
+            width:100%;
+            box-sizing:border-box;
+            padding: 0 15px;           /* mesmo padding horizontal do header */
+            margin: 0 auto;
+            display:block;
+        }
 
         .card-html {
             display:flex;
@@ -61,21 +71,20 @@ def render_catalog_card(slug: str,
             gap:16px;
             background:#ffffff;
             border-radius:12px;
-            padding:0;                      /* sem padding no wrapper para não deslocar bordas */
+            padding:0;                 /* sem padding no wrapper do card */
             box-shadow:0 8px 24px rgba(8,54,92,0.06);
             border:1px solid rgba(230,238,248,1);
             box-sizing:border-box;
-            width:100%;
+            width:100%;                /* ocupa 100% do .aligned-wrapper */
             margin-bottom:12px;
             overflow:hidden;
             min-height:110px;
         }
 
-        /* padding interno igual ao header (15px) para alinhar início/fim do conteúdo */
         .card-left {
             flex:1 1 auto;
             min-width:0;
-            padding:15px;                   /* <-- mesmo padding do header */
+            padding:15px 0 15px 0;     /* padding vertical; horizontal já vem do aligned-wrapper */
             display:flex;
             flex-direction:column;
             justify-content:center;
@@ -87,9 +96,8 @@ def render_catalog_card(slug: str,
         .card-sub { color:#6b7280; font-size:13px; margin:6px 0 0 0; font-family:Inter,system-ui,sans-serif; }
         .card-btn { display:inline-block; margin-top:10px; padding:8px 14px; background:#ffffff; color:#08365c; border-radius:8px; border:1px solid rgba(8,54,92,0.06); text-decoration:none; font-weight:700; font-family:Inter,system-ui,sans-serif; }
 
-        /* thumb à direita; sem radius externo para não criar desalinhamento visual */
         .card-thumb {
-            flex: 0 0 40%;
+            flex: 0 0 36%;             /* largura relativa da miniatura; ajuste se necessário */
             height:100%;
             border-radius:0;
             overflow:hidden;
@@ -98,20 +106,20 @@ def render_catalog_card(slug: str,
             display:block;
             background-size:cover;
             background-position:center;
-            /* corte diagonal opcional; mantenha ou remova conforme preferir */
             clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
             -webkit-clip-path: polygon(12% 0, 100% 0, 100% 100%, 0% 100%);
         }
 
         @media (max-width:1200px){
-            .card-thumb { flex: 0 0 35%; }
+            .card-thumb { flex: 0 0 40%; }
             .card-title{ font-size:16px; }
             .card-html { min-height:90px; }
         }
         @media (max-width:700px){
-            .card-html { flex-direction:column; }
-            .card-left { padding:12px; } /* reduz um pouco em telas pequenas */
-            .card-thumb { width:100%; height:160px; clip-path:none; -webkit-clip-path:none; border-radius:0 0 12px 12px; }
+            .aligned-wrapper { padding: 0 12px; } /* reduz padding em telas pequenas para encaixar */
+            .card-html { flex-direction:column; border-radius:12px; }
+            .card-left { padding:12px 0; }
+            .card-thumb { width:100%; height:160px; clip-path:none; -webkit-clip-path:none; border-radius:0 0 12px 12px; flex:0 0 auto; }
         }
         </style>
         """, unsafe_allow_html=True)
@@ -143,16 +151,18 @@ def render_catalog_card(slug: str,
     else:
         thumb_div = f'<div class="card-thumb" {thumb_attr}></div>'
 
-    # monta o HTML do card; wrapper sem padding, conteúdo interno (.card-left) tem padding igual ao header
+    # monta o HTML do card dentro do aligned-wrapper (mantemos o header inalterado)
     html = f"""
-    <div class="card-html">
-      <div class="card-left">
-        <div class="card-title">{cliente_name}</div>
-        <div class="card-meta">Itens no catálogo: <strong>{qtd_pecas}</strong></div>
-        {"<div class='card-sub'>" + preview_title + "</div>" if preview_title else ""}
-        <div><a class="card-btn" href="{href}">Abrir Catálogo</a></div>
+    <div class="aligned-wrapper">
+      <div class="card-html">
+        <div class="card-left">
+          <div class="card-title">{cliente_name}</div>
+          <div class="card-meta">Itens no catálogo: <strong>{qtd_pecas}</strong></div>
+          {"<div class='card-sub'>" + preview_title + "</div>" if preview_title else ""}
+          <div><a class="card-btn" href="{href}">Abrir Catálogo</a></div>
+        </div>
+        {thumb_div}
       </div>
-      {thumb_div}
     </div>
     """
     st.markdown(html, unsafe_allow_html=True)
