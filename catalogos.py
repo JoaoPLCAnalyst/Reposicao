@@ -288,28 +288,67 @@ if not clientes:
 # Carrega database para prévisualizações
 pecas_bd = carregar_database()
 
-# Grid responsivo: 3 colunas
+# Grid responsivo: 3 colunas (mostra imagem do primeiro componente do catálogo)
 cols = st.columns(3, gap="large")
 for i, c in enumerate(clientes):
     col = cols[i % 3]
     slug = c["cliente"].lower().replace(" ", "_")
     with col:
-        st.markdown(
-            f"""
-            <div class="card">
+        # tenta carregar dados completos do cliente para obter a primeira peça
+        cliente_data = carregar_cliente_por_slug(slug)
+        preview_img = None
+        preview_title = ""
+        preview_sub = ""
+        if cliente_data:
+            pecas_list = cliente_data.get("pecas", [])
+            first = None
+            if pecas_list:
+                first = pecas_list[0]
+            # resolve dados da primeira peça a partir do database
+            if first:
+                codigo_first = first.get("codigo") if isinstance(first, dict) else first
+                detalhe = pecas_bd.get(codigo_first, {}) if pecas_bd else {}
+                preview_img = detalhe.get("imagem") or (first.get("imagem") if isinstance(first, dict) else None)
+                preview_title = detalhe.get("nome") or (first.get("nome") if isinstance(first, dict) else codigo_first)
+                preview_sub = f"{detalhe.get('categoria','')} • {detalhe.get('subcategoria','')}".strip(" • ")
+
+        # fallback visual quando não há imagem
+        if not preview_img:
+            # cria um bloco visual simples como placeholder
+            preview_html = f"""
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:120px;height:90px;border-radius:8px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#6b7280;border:1px solid #e6eef8;font-weight:600">
+                {c['cliente'][0:2].upper()}
+              </div>
+              <div style="flex:1">
+                <div style="font-size:16px;font-weight:700;color:#08365c">{c['cliente']}</div>
+                <div style="color:#4b5563;margin-top:6px">Vendedor: <strong>{c['vendedor']}</strong></div>
+                <div style="color:#6b7280;margin-top:6px">Itens no catálogo: <strong>{c['qtd_pecas']}</strong></div>
+              </div>
+            </div>
+            """
+            st.markdown(f"<div class='card'>{preview_html}</div>", unsafe_allow_html=True)
+        else:
+            # monta HTML do card com thumbnail (trata URL e caminho local)
+            safe_img = preview_img
+            thumb_html = f"""
+            <div style="display:flex;gap:12px;align-items:center">
+              <div style="width:120px;height:90px;border-radius:8px;overflow:hidden;border:1px solid #e6eef8;flex-shrink:0">
+                <img src="{safe_img}" style="width:100%;height:100%;object-fit:cover;display:block" />
+              </div>
+              <div style="flex:1">
                 <div class="card-title">{c['cliente']}</div>
                 <div class="card-sub">Vendedor: <strong>{c['vendedor']}</strong></div>
                 <div class="card-meta">Itens no catálogo: <strong>{c['qtd_pecas']}</strong></div>
-            """,
-            unsafe_allow_html=True,
-        )
+                <div style="margin-top:6px;color:#6b7280;font-size:13px">{preview_title}</div>
+              </div>
+            </div>
+            """
+            st.markdown(f"<div class='card'>{thumb_html}</div>", unsafe_allow_html=True)
 
         # Botão Abrir Catálogo
         btn_open = st.button("Abrir Catálogo", key=f"open_{slug}")
-
         if btn_open:
             abrir_catalogo_por_slug(slug)
-
-        st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("---")
