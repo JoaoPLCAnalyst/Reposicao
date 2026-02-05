@@ -90,4 +90,3 @@ def render_catalog_banner(
         clicked = st.button("Ver catálogo", key=f"open_{slug}_{key_suffix}")
 
     return clicked
-git
